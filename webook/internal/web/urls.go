@@ -1,15 +1,12 @@
 package web
 
 import (
-	"gin_learn/webook/internal/web/user"
-	//"gin_learn/webook/service"
 	"github.com/gin-gonic/gin"
 )
 
-func DispatchRoutes(server *gin.Engine) {
+func DispatchRoutes(server *gin.Engine) *gin.RouterGroup {
 	// user 路由
 	ug := server.Group("/user")
 	//svc = server.User
-	u := user.NewUserHandler()
-	u.RegisterUserRouter(ug)
+	return ug
 }

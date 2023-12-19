@@ -2,6 +2,7 @@ package user
 
 import (
 	"fmt"
+	"gin_learn/webook/domain"
 	"gin_learn/webook/service"
 	regexp "github.com/dlclark/regexp2"
 	"github.com/gin-gonic/gin"
@@ -63,6 +64,14 @@ func (user *UserHandler) SignUp(ctx *gin.Context) {
 	// password与confirmPassword校验
 	if req.Password != req.ConfirmPassword {
 		ctx.String(http.StatusOK, "两次密码不一致")
+		return
+	}
+	err = user.svc.SignUp(ctx, domain.User{
+		Email:    req.Email,
+		Password: req.Password,
+	})
+	if err != nil {
+		ctx.String(http.StatusOK, "系统异常")
 		return
 	}
 
