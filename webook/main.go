@@ -4,7 +4,7 @@ import (
 	"gin_learn/webook/internal/web"
 	"gin_learn/webook/internal/web/user"
 	"gin_learn/webook/repository"
-	dao2 "gin_learn/webook/repository/dao"
+	"gin_learn/webook/repository/dao"
 	"gin_learn/webook/service"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -18,8 +18,12 @@ func main() {
 		// 一旦初始化过程出错，就不再继续
 		panic(err)
 	}
-	dao := dao2.NewUserDao(db)
-	repo := repository.NewUserRepository(dao)
+	err = dao.InitTables(db)
+	if err != nil {
+		panic(err)
+	}
+	ud := dao.NewUserDao(db)
+	repo := repository.NewUserRepository(ud)
 	svc := service.NewUserService(repo)
 	u := user.NewUserHandler(svc)
 

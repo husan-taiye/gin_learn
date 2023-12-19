@@ -27,8 +27,8 @@ func (dao *UserDao) Insert(ctx context.Context, u User) error {
 // entity/model/PO（persistent object）
 type User struct {
 	// 数据库模型
-	Id       int64
-	Email    string
+	Id       int64  `gorm:"primaryKey,autoIncrement"`
+	Email    string `gorm:"unique"`
 	Password string
 
 	CreateTime int64
