@@ -6,6 +6,7 @@ import (
 	"gin_learn/webook/domain"
 	"gin_learn/webook/service"
 	regexp "github.com/dlclark/regexp2"
+	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"net/http"
 )
@@ -99,7 +100,7 @@ func (user *UserHandler) Login(ctx *gin.Context) {
 		return
 	}
 	// 往service层传值
-	err := user.svc.Login(ctx, domain.User{
+	findUser, err := user.svc.Login(ctx, domain.User{
 		Email:    req.Email,
 		Password: req.Password,
 	})
@@ -110,6 +111,15 @@ func (user *UserHandler) Login(ctx *gin.Context) {
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, map[string]any{"msg": "系统错误", "success": false})
 	}
+	// 登录成功
+	// 设置session
+	sess := sessions.Default(ctx)
+	// 需要放在session里面的值
+	sess.Set("userId", findUser.Id)
+	err = sess.Save()
+	if err != nil {
+		return
+	}
 	ctx.JSON(http.StatusOK, map[string]any{"msg": "登录成功", "success": true})
 	return
 }
@@ -118,5 +128,6 @@ func (user *UserHandler) Edit(ctx *gin.Context) {
 
 }
 func (user *UserHandler) Profile(ctx *gin.Context) {
-
+	sess := sessions.Default(ctx)
+	ctx.JSON(http.StatusOK, map[string]any{"msg": "这是你的profile", "success": true, "userId": sess.Get("userId")})
 }

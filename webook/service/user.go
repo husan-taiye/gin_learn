@@ -23,21 +23,21 @@ func NewUserService(repo *repository.UserRepository) *UserService {
 	}
 }
 
-func (svc *UserService) Login(ctx context.Context, user domain.User) error {
+func (svc *UserService) Login(ctx context.Context, user domain.User) (domain.User, error) {
 	// 先找到用户
 	findUser, err := svc.repo.FindByEmail(ctx, user.Email)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return ErrInvalidUserOrPassword
+		return domain.User{}, ErrInvalidUserOrPassword
 	}
 	if err != nil {
-		return err
+		return domain.User{}, err
 	}
 	// 比较密码
 	err = bcrypt.CompareHashAndPassword([]byte(findUser.Password), []byte(user.Password))
 	if err != nil {
-		return ErrInvalidUserOrPassword
+		return domain.User{}, ErrInvalidUserOrPassword
 	}
-	return nil
+	return findUser, nil
 }
 func (svc *UserService) SignUp(ctx context.Context, user domain.User) error {
 	// 加密放这里
