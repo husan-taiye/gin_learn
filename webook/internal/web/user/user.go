@@ -15,16 +15,25 @@ import (
 type UserHandler struct {
 	svc         *service.UserService
 	emailExp    *regexp.Regexp
+	nicknameExp *regexp.Regexp
+	birthdayExp *regexp.Regexp
+	profileExp  *regexp.Regexp
 	passwordExp *regexp.Regexp
 }
 
 func NewUserHandler(svc *service.UserService) *UserHandler {
 	emailExp := regexp.MustCompile(emailRegexPattern, regexp.None)
 	passwordExp := regexp.MustCompile(passwordRegexPattern, regexp.None)
+	nicknameExp := regexp.MustCompile(nicknameRegexPattern, regexp.None)
+	birthdayExp := regexp.MustCompile(birthdayRegexPattern, regexp.None)
+	profileExp := regexp.MustCompile(profileRegexPattern, regexp.None)
 	return &UserHandler{
 		svc:         svc,
 		emailExp:    emailExp,
 		passwordExp: passwordExp,
+		nicknameExp: nicknameExp,
+		birthdayExp: birthdayExp,
+		profileExp:  profileExp,
 	}
 }
 
@@ -125,9 +134,75 @@ func (user *UserHandler) Login(ctx *gin.Context) {
 }
 
 func (user *UserHandler) Edit(ctx *gin.Context) {
+	type EditReq struct {
+		Nickname string `json:"nickname"`
+		Birthday string `json:"birthday"`
+		Profile  string `json:"profile"`
+	}
+	var req EditReq
+	if err := ctx.Bind(&req); err != nil {
+		return
+	}
+	// 校验nickname
+	ok, err := user.nicknameExp.MatchString(req.Nickname)
+	if err != nil {
+		ctx.String(http.StatusInternalServerError, "系统错误")
+		return
+	}
+	if !ok {
+		ctx.JSON(http.StatusOK, map[string]any{"msg": "修改失败, 昵称长度应在1-64个字节", "success": false})
+		return
+	}
+	// 校验birthday
+	ok, err = user.birthdayExp.MatchString(req.Birthday)
+	if err != nil {
+		ctx.String(http.StatusInternalServerError, "系统错误")
+		return
+	}
+	if !ok {
+		ctx.JSON(http.StatusOK, map[string]any{"msg": "修改失败, 生日日期格式错误", "success": false})
+		return
+	}
 
+	// 校验profile
+	ok, err = user.profileExp.MatchString(req.Profile)
+	if err != nil {
+		ctx.String(http.StatusInternalServerError, "系统错误")
+		return
+	}
+	if !ok {
+		ctx.JSON(http.StatusOK, map[string]any{"msg": "修改失败,个人简介长度应在256个字节内", "success": false})
+		return
+	}
+
+	// 获取userId
+	session := sessions.Default(ctx)
+	UserId := session.Get("userId").(int64)
+	err = user.svc.Edit(ctx, domain.UserProfile{
+		UserId:   UserId,
+		Nickname: req.Nickname,
+		Birthday: req.Birthday,
+		Profile:  req.Profile,
+	})
+	if err != nil {
+		ctx.JSON(http.StatusOK, map[string]any{"msg": "修改失败", "success": false})
+		return
+	}
+	ctx.JSON(http.StatusOK, map[string]any{"msg": "修改成功", "success": true})
+	return
 }
 func (user *UserHandler) Profile(ctx *gin.Context) {
 	sess := sessions.Default(ctx)
-	ctx.JSON(http.StatusOK, map[string]any{"msg": "这是你的profile", "success": true, "userId": sess.Get("userId")})
+	userId := sess.Get("userId").(int64)
+	userProfile, err := user.svc.Profile(ctx, userId)
+	if err != nil {
+		ctx.JSON(http.StatusOK, map[string]any{"msg": "获取个人信息失败", "success": false})
+	}
+	ctx.JSON(http.StatusOK, map[string]any{"msg": "", "success": true, "data": map[string]any{
+		"nickname": userProfile.Nickname,
+		"profile":  userProfile.Profile,
+		"birthday": userProfile.Birthday,
+		"userId":   userProfile.UserId,
+	}})
+	return
 }

@@ -39,6 +39,7 @@ func (svc *UserService) Login(ctx context.Context, user domain.User) (domain.Use
 	}
 	return findUser, nil
 }
+
 func (svc *UserService) SignUp(ctx context.Context, user domain.User) error {
 	// 加密放这里
 	hash, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
@@ -49,4 +50,12 @@ func (svc *UserService) SignUp(ctx context.Context, user domain.User) error {
 	user.Password = string(hash)
 	// 存储
 	return svc.repo.Create(ctx, user)
+}
+
+func (svc *UserService) Edit(ctx context.Context, up domain.UserProfile) error {
+	return svc.repo.Update(ctx, up)
+}
+
+func (svc *UserService) Profile(ctx context.Context, userId int64) (domain.UserProfile, error) {
+	return svc.repo.FindProfileByUserId(ctx, userId)
 }

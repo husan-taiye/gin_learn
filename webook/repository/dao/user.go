@@ -43,6 +43,35 @@ func (dao *UserDao) Insert(ctx context.Context, u User) error {
 	}
 	return err
 }
+func (dao *UserDao) Update(ctx context.Context, up UserProfile) error {
+	now := time.Now().UnixMilli()
+	up.CreateTime = now
+	up.UpdateTime = now
+	err := dao.db.WithContext(ctx).Create(&up).Error
+	var mysqlErr *mysql.MySQLError
+	if errors.As(err, &mysqlErr) {
+		const uniqueConflictsErrNo uint16 = 1062
+		if mysqlErr.Number == uniqueConflictsErrNo {
+			var findUp UserProfile
+			dao.db.First(&findUp, "user_id = ?", up.UserId)
+			findUp.UpdateTime = now
+			findUp.Birthday = up.Birthday
+			findUp.Nickname = up.Nickname
+			findUp.Profile = up.Profile
+			dao.db.Save(&findUp)
+			//err := dao.db.WithContext(ctx).Where("user_id = ？", up.UserId).Updates(map[string]interface{}{
+			//	"nickname": up.Nickname, "birthday": up.Birthday, "profile": up.Profile}).Error
+			return nil
+		}
+	}
+	return err
+}
+
+func (dao *UserDao) FindProfileByUserId(ctx context.Context, userId int64) (UserProfile, error) {
+	var up UserProfile
+	err := dao.db.WithContext(ctx).First(&up, "user_id = ?", userId).Error
+	return up, err
+}
 
 // User 直接对应数据库表结构
 // entity/model/PO（persistent object）
@@ -52,6 +81,17 @@ type User struct {
 	Email    string `gorm:"unique"`
 	Password string
 
+	CreateTime int64
+	UpdateTime int64
+}
+
+type UserProfile struct {
+	Id       int64 `gorm:"primaryKey, autoIncrement"`
+	UserId   int64 `gorm:"unique"`
+	Nickname string
+
+	Birthday   int64
+	Profile    string
 	CreateTime int64
 	UpdateTime int64
 }
