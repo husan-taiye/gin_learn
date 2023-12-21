@@ -2,8 +2,15 @@ package dao
 
 import (
 	"context"
+	"errors"
+	"github.com/go-sql-driver/mysql"
 	"gorm.io/gorm"
 	"time"
+)
+
+var (
+	ErrUserDuplicateEmail = errors.New("邮箱重复")
+	ErrUserNotFount       = gorm.ErrRecordNotFound
 )
 
 type UserDao struct {
@@ -16,11 +23,25 @@ func NewUserDao(db *gorm.DB) *UserDao {
 	}
 }
 
+func (dao *UserDao) FindByEmail(ctx context.Context, email string) (User, error) {
+	var u User
+	err := dao.db.WithContext(ctx).Where("email = ?", email).First(&u).Error
+	//err := dao.db.WithContext(ctx).First(&u, "email = ?", email).Error
+	return u, err
+}
 func (dao *UserDao) Insert(ctx context.Context, u User) error {
 	now := time.Now().UnixMilli()
 	u.CreateTime = now
 	u.UpdateTime = now
-	return dao.db.WithContext(ctx).Create(&u).Error
+	err := dao.db.WithContext(ctx).Create(&u).Error
+	var mysqlErr *mysql.MySQLError
+	if errors.As(err, &mysqlErr) {
+		const uniqueConflictsErrNo uint16 = 1062
+		if mysqlErr.Number == uniqueConflictsErrNo {
+			return ErrUserDuplicateEmail
+		}
+	}
+	return err
 }
 
 // User 直接对应数据库表结构

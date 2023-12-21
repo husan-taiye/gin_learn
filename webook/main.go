@@ -11,6 +11,28 @@ import (
 )
 
 func main() {
+	db := initDB()
+	userHandler := initUser(db)
+	server := web.InitWebserver()
+
+	ug := web.DispatchRoutes(server)
+	userHandler.RegisterUserRouter(ug)
+
+	err := server.Run(":8000")
+	if err != nil {
+		return
+	}
+}
+
+func initUser(db *gorm.DB) *user.UserHandler {
+	ud := dao.NewUserDao(db)
+	repo := repository.NewUserRepository(ud)
+	svc := service.NewUserService(repo)
+	u := user.NewUserHandler(svc)
+	return u
+}
+
+func initDB() *gorm.DB {
 	db, err := gorm.Open(mysql.Open("root:root@tcp(localhost:3306)/webook"))
 	if err != nil {
 		// 只在初始化过程中panic
@@ -22,14 +44,5 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	ud := dao.NewUserDao(db)
-	repo := repository.NewUserRepository(ud)
-	svc := service.NewUserService(repo)
-	u := user.NewUserHandler(svc)
-
-	server := web.RegisterRoutes(u)
-	err = server.Run(":8000")
-	if err != nil {
-		return
-	}
+	return db
 }

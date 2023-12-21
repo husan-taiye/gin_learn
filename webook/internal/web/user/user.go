@@ -1,6 +1,7 @@
 package user
 
 import (
+	"errors"
 	"fmt"
 	"gin_learn/webook/domain"
 	"gin_learn/webook/service"
@@ -66,10 +67,17 @@ func (user *UserHandler) SignUp(ctx *gin.Context) {
 		ctx.String(http.StatusOK, "两次密码不一致")
 		return
 	}
+
+	// service 层
 	err = user.svc.SignUp(ctx, domain.User{
 		Email:    req.Email,
 		Password: req.Password,
 	})
+	if errors.Is(err, service.ErrUserDuplicateEmail) {
+		//ctx.String(http.StatusOK, "邮箱重复")
+		ctx.JSON(http.StatusOK, map[string]any{"msg": "邮箱重复", "success": false})
+		return
+	}
 	if err != nil {
 		ctx.String(http.StatusOK, "系统异常")
 		return
@@ -80,7 +88,30 @@ func (user *UserHandler) SignUp(ctx *gin.Context) {
 	return
 }
 func (user *UserHandler) Login(ctx *gin.Context) {
-	println("login")
+	// 定义接受结构体
+	type LoginReq struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+	// 初始化接受结构体并赋值
+	var req LoginReq
+	if err := ctx.Bind(&req); err != nil {
+		return
+	}
+	// 往service层传值
+	err := user.svc.Login(ctx, domain.User{
+		Email:    req.Email,
+		Password: req.Password,
+	})
+	if errors.Is(err, service.ErrInvalidUserOrPassword) {
+		ctx.JSON(http.StatusOK, map[string]any{"msg": "账号/邮箱或密码不对", "success": false})
+		return
+	}
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, map[string]any{"msg": "系统错误", "success": false})
+	}
+	ctx.JSON(http.StatusOK, map[string]any{"msg": "登录成功", "success": true})
+	return
 }
 
 func (user *UserHandler) Edit(ctx *gin.Context) {

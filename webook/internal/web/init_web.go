@@ -1,14 +1,13 @@
 package web
 
 import (
-	"gin_learn/webook/internal/web/user"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"strings"
 	"time"
 )
 
-func RegisterRoutes(u *user.UserHandler) *gin.Engine {
+func InitWebserver() *gin.Engine {
 	server := gin.Default()
 	server.Use(cors.New(cors.Config{
 
@@ -24,7 +23,6 @@ func RegisterRoutes(u *user.UserHandler) *gin.Engine {
 		},
 		MaxAge: 12 * time.Hour,
 	}))
-	ug := DispatchRoutes(server)
-	u.RegisterUserRouter(ug)
+
 	return server
 }
