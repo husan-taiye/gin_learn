@@ -197,6 +197,7 @@ func (user *UserHandler) Profile(ctx *gin.Context) {
 	userProfile, err := user.svc.Profile(ctx, userId)
 	if err != nil {
 		ctx.JSON(http.StatusOK, map[string]any{"msg": "获取个人信息失败", "success": false})
+		return
 	}
 	ctx.JSON(http.StatusOK, map[string]any{"msg": "", "success": true, "data": map[string]any{
 		"nickname": userProfile.Nickname,
