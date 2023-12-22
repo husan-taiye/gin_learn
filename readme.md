@@ -3,3 +3,6 @@
 
 获取个人信息接口：
 ![img_1.png](img_1.png)
+
+启动路径：
+/webook/main.go
