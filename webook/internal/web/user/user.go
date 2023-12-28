@@ -8,7 +8,9 @@ import (
 	regexp "github.com/dlclark/regexp2"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	jwt "github.com/golang-jwt/jwt/v5"
 	"net/http"
+	"time"
 )
 
 // UserHandler 定义所有有关user的路由
@@ -97,6 +99,58 @@ func (user *UserHandler) SignUp(ctx *gin.Context) {
 	ctx.String(http.StatusOK, "注册成功")
 	return
 }
+
+func (user *UserHandler) LoginJWT(ctx *gin.Context) {
+	// 定义接受结构体
+	type LoginReq struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+	// 初始化接受结构体并赋值
+	var req LoginReq
+	if err := ctx.Bind(&req); err != nil {
+		return
+	}
+	// 往service层传值
+	findUser, err := user.svc.Login(ctx, domain.User{
+		Email:    req.Email,
+		Password: req.Password,
+	})
+	if errors.Is(err, service.ErrInvalidUserOrPassword) {
+		ctx.JSON(http.StatusOK, map[string]any{"msg": "账号/邮箱或密码不对", "success": false})
+		return
+	}
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, map[string]any{"msg": "系统错误", "success": false})
+	}
+	// 登录成功
+	// 设置session
+	//sess := sessions.Default(ctx)
+	//// 需要放在session里面的值
+	//sess.Set("userId", findUser.Id)
+	//err = sess.Save()
+	//if err != nil {
+	//	return
+	//}
+	claims := UserClaims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute * 60)),
+		},
+		Uid: findUser.Id,
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenStr, err := token.SignedString([]byte("r4BKnmqBgWhnudRc4xufW9f97ODTqX10"))
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, map[string]any{"msg": "系统错误", "success": false})
+		return
+	}
+	fmt.Println(tokenStr)
+	ctx.Header("x-jwt-token", tokenStr)
+	fmt.Println(findUser)
+	ctx.JSON(http.StatusOK, map[string]any{"msg": "登录成功", "success": true})
+	return
+}
+
 func (user *UserHandler) Login(ctx *gin.Context) {
 	// 定义接受结构体
 	type LoginReq struct {
@@ -206,4 +260,33 @@ func (user *UserHandler) Profile(ctx *gin.Context) {
 		"userId":   userProfile.UserId,
 	}})
 	return
+}
+func (user *UserHandler) ProfileJWT(ctx *gin.Context) {
+	c, _ := ctx.Get("claims")
+	claims, ok := c.(*UserClaims)
+	if !ok {
+		// 监控输出
+		ctx.String(http.StatusOK, "系统错误")
+		return
+	}
+
+	userId := claims.Uid
+	userProfile, err := user.svc.Profile(ctx, userId)
+	if err != nil {
+		ctx.JSON(http.StatusOK, map[string]any{"msg": "获取个人信息失败", "success": false})
+		return
+	}
+	ctx.JSON(http.StatusOK, map[string]any{"msg": "", "success": true, "data": map[string]any{
+		"nickname": userProfile.Nickname,
+		"profile":  userProfile.Profile,
+		"birthday": userProfile.Birthday,
+		"userId":   userProfile.UserId,
+	}})
+	return
+}
+
+type UserClaims struct {
+	jwt.RegisteredClaims
+	// 生命要放进token里面的数据
+	Uid int64
 }

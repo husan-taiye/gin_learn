@@ -15,8 +15,8 @@ func InitWebserver() *gin.Engine {
 	server.Use(cors.New(cors.Config{
 
 		AllowMethods:  []string{"PUT", "PATCH", "OPTIONS", "POST"},
-		AllowHeaders:  []string{"Origin"},
-		ExposeHeaders: []string{"Authorization", "Content-Type"},
+		AllowHeaders:  []string{"Origin", "Authorization"},
+		ExposeHeaders: []string{"Authorization", "Content-Type", "X-jwt-token"},
 		// 是否允许带cookie
 		AllowCredentials: true,
 		// 下面两个都可以，二选一
@@ -37,8 +37,12 @@ func InitWebserver() *gin.Engine {
 	})
 	server.Use(sessions.Sessions("mysession", store))
 
-	server.Use(middleware.NewLoginMiddlewareBuilder().
+	//server.Use(middleware.NewLoginMiddlewareBuilder().
+	//	IgnorePaths("/user/signup").
+	//	IgnorePaths("/user/login").Build())
+	server.Use(middleware.NewloginJWTMiddlewareBuilder().
 		IgnorePaths("/user/signup").
 		IgnorePaths("/user/login").Build())
+
 	return server
 }
