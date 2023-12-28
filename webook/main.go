@@ -1,23 +1,27 @@
 package main
 
 import (
-	"gin_learn/webook/internal/web"
 	"gin_learn/webook/internal/web/user"
 	"gin_learn/webook/repository"
 	"gin_learn/webook/repository/dao"
 	"gin_learn/webook/service"
+	"github.com/gin-gonic/gin"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
+	"net/http"
 )
 
 func main() {
-	db := initDB()
-	userHandler := initUser(db)
-	server := web.InitWebserver()
+	//db := initDB()
+	//userHandler := initUser(db)
+	//server := web.InitWebserver()
 
-	ug := web.DispatchRoutes(server)
-	userHandler.RegisterUserRouter(ug)
-
+	//ug := web.DispatchRoutes(server)
+	//userHandler.RegisterUserRouter(ug)
+	server := gin.Default()
+	server.GET("hello", func(ctx *gin.Context) {
+		ctx.String(http.StatusOK, "hello~")
+	})
 	err := server.Run(":8000")
 	if err != nil {
 		return
