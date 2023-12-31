@@ -1,6 +1,7 @@
 package web
 
 import (
+	"gin_learn/webook/internal/config"
 	"gin_learn/webook/internal/web/middleware"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/sessions"
@@ -26,7 +27,7 @@ func InitWebserver() *gin.Engine {
 		},
 		MaxAge: 12 * time.Hour,
 	}))
-	store, err := redis.NewStore(16, "tcp", "localhost:6379", "",
+	store, err := redis.NewStore(16, "tcp", config.Config.Redis.Addr, "",
 		[]byte("f4TgXINAWeleaJ3f70AI7J3vTKQtJjnO"), []byte("DYs8aItQBkFa9pw8KpK0AkRn7XPsPN1g"))
 	if err != nil {
 		panic(err)

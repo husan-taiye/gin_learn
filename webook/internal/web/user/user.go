@@ -3,8 +3,8 @@ package user
 import (
 	"errors"
 	"fmt"
-	"gin_learn/webook/domain"
-	"gin_learn/webook/service"
+	"gin_learn/webook/internal/domain"
+	"gin_learn/webook/internal/service"
 	regexp "github.com/dlclark/regexp2"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
