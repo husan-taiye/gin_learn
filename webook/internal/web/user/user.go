@@ -231,8 +231,17 @@ func (user *UserHandler) Edit(ctx *gin.Context) {
 	}
 
 	// 获取userId
-	session := sessions.Default(ctx)
-	UserId := session.Get("userId").(int64)
+	c, _ := ctx.Get("claims")
+	claims, ok := c.(*UserClaims)
+	if !ok {
+		// 监控输出
+		ctx.String(http.StatusOK, "系统错误")
+		return
+	}
+	UserId := claims.Uid
+	//userId := claims.Uid
+	//session := sessions.Default(ctx)
+	//UserId := session.Get("userId").(int64)
 	err = user.svc.Edit(ctx, domain.UserProfile{
 		UserId:   UserId,
 		Nickname: req.Nickname,
