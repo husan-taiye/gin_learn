@@ -16,6 +16,7 @@ import (
 // UserHandler 定义所有有关user的路由
 type UserHandler struct {
 	svc         *service.UserService
+	codeSvc     *service.CodeService
 	emailExp    *regexp.Regexp
 	nicknameExp *regexp.Regexp
 	birthdayExp *regexp.Regexp
@@ -23,7 +24,7 @@ type UserHandler struct {
 	passwordExp *regexp.Regexp
 }
 
-func NewUserHandler(svc *service.UserService) *UserHandler {
+func NewUserHandler(svc *service.UserService, codeSvc *service.CodeService) *UserHandler {
 	emailExp := regexp.MustCompile(emailRegexPattern, regexp.None)
 	passwordExp := regexp.MustCompile(passwordRegexPattern, regexp.None)
 	nicknameExp := regexp.MustCompile(nicknameRegexPattern, regexp.None)
@@ -31,6 +32,7 @@ func NewUserHandler(svc *service.UserService) *UserHandler {
 	profileExp := regexp.MustCompile(profileRegexPattern, regexp.None)
 	return &UserHandler{
 		svc:         svc,
+		codeSvc:     codeSvc,
 		emailExp:    emailExp,
 		passwordExp: passwordExp,
 		nicknameExp: nicknameExp,
@@ -292,6 +294,24 @@ func (user *UserHandler) ProfileJWT(ctx *gin.Context) {
 		"birthday": userProfile.Birthday,
 		"userId":   userProfile.UserId,
 	}})
+	return
+}
+
+func (user *UserHandler) SendCode(ctx *gin.Context) {
+	type Req struct {
+		Phone string `json:"phone"`
+	}
+	const biz = "login"
+	var req Req
+	if err := ctx.Bind(&req); err != nil {
+		return
+	}
+	err := user.codeSvc.Send(ctx, biz, req.Phone)
+	if err != nil {
+		ctx.JSON(http.StatusOK, map[string]any{"msg": "发送失败", "success": false})
+		return
+	}
+	ctx.JSON(http.StatusOK, map[string]any{"msg": "发送成功", "success": true})
 	return
 }
 

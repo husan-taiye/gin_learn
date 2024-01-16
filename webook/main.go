@@ -6,6 +6,7 @@ import (
 	"gin_learn/webook/internal/repository/cache"
 	dao2 "gin_learn/webook/internal/repository/dao"
 	"gin_learn/webook/internal/service"
+	"gin_learn/webook/internal/service/sms/memory"
 	"gin_learn/webook/internal/web"
 	"gin_learn/webook/internal/web/user"
 	"github.com/gin-gonic/gin"
@@ -27,7 +28,7 @@ func main() {
 	server.GET("hello", func(ctx *gin.Context) {
 		ctx.String(http.StatusOK, "hello~")
 	})
-	err := server.Run(":8081")
+	err := server.Run(":8080")
 	if err != nil {
 		return
 	}
@@ -38,7 +39,12 @@ func initUser(db *gorm.DB, client *redis.Client) *user.UserHandler {
 	userCache := cache.NewUserCache(client)
 	repo := repository.NewUserRepository(ud, userCache)
 	svc := service.NewUserService(repo)
-	u := user.NewUserHandler(svc)
+	// code初始化
+	codeCache := cache.NewCodeCache(client)
+	codeRepo := repository.NewCodeRepository(codeCache)
+	smsSvc := memory.NewService()
+	codeSvc := service.NewCodeService(codeRepo, smsSvc, "22321")
+	u := user.NewUserHandler(svc, codeSvc)
 	return u
 }
 
