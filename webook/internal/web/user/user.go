@@ -4,7 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"gin_learn/webook/internal/domain"
+	"gin_learn/webook/internal/repository/cache"
 	"gin_learn/webook/internal/service"
+	"gin_learn/webook/internal/web/utils"
 	regexp "github.com/dlclark/regexp2"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
@@ -22,6 +24,13 @@ type UserHandler struct {
 	birthdayExp *regexp.Regexp
 	profileExp  *regexp.Regexp
 	passwordExp *regexp.Regexp
+}
+
+type UserClaims struct {
+	jwt.RegisteredClaims
+	// 生命要放进token里面的数据
+	Uid       int64
+	UserAgent string
 }
 
 func NewUserHandler(svc *service.UserService, codeSvc *service.CodeService) *UserHandler {
@@ -134,24 +143,32 @@ func (user *UserHandler) LoginJWT(ctx *gin.Context) {
 	//if err != nil {
 	//	return
 	//}
+	if err = user.setJWTToken(ctx, findUser.Id); err != nil {
+		ctx.JSON(http.StatusInternalServerError, map[string]any{"msg": "系统错误", "success": false})
+		return
+	}
+	fmt.Println(findUser)
+	ctx.JSON(http.StatusOK, map[string]any{"msg": "登录成功", "success": true})
+	return
+}
+
+func (user *UserHandler) setJWTToken(ctx *gin.Context, uId int64) error {
 	claims := UserClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute * 60)),
 		},
 		UserAgent: ctx.Request.UserAgent(),
-		Uid:       findUser.Id,
+		Uid:       uId,
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenStr, err := token.SignedString([]byte("r4BKnmqBgWhnudRc4xufW9f97ODTqX10"))
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, map[string]any{"msg": "系统错误", "success": false})
-		return
+
+		return err
 	}
 	fmt.Println(tokenStr)
 	ctx.Header("x-jwt-token", tokenStr)
-	fmt.Println(findUser)
-	ctx.JSON(http.StatusOK, map[string]any{"msg": "登录成功", "success": true})
-	return
+	return nil
 }
 
 func (user *UserHandler) Login(ctx *gin.Context) {
@@ -315,9 +332,40 @@ func (user *UserHandler) SendCode(ctx *gin.Context) {
 	return
 }
 
-type UserClaims struct {
-	jwt.RegisteredClaims
-	// 生命要放进token里面的数据
-	Uid       int64
-	UserAgent string
+func (user *UserHandler) LoginSms(ctx *gin.Context) {
+	type Req struct {
+		Phone string `json:"phone"`
+		Code  string `json:"Code"`
+	}
+	const biz = "login"
+	var req Req
+	if err := ctx.Bind(&req); err != nil {
+		return
+	}
+	res, err := user.codeSvc.Verify(ctx, biz, req.Phone, req.Code)
+	if errors.Is(err, cache.ErrCodeVerifyTooMany) {
+		ctx.JSON(http.StatusOK, utils.Result{Code: 500, Success: false, Msg: "验证码校验过于频繁", Data: []string{}})
+		return
+	}
+	if err != nil {
+		ctx.JSON(http.StatusOK, utils.Result{Code: 500, Success: false, Msg: "系统错误", Data: []string{}})
+		return
+	}
+	if !res {
+		ctx.JSON(http.StatusOK, utils.Result{Code: 400, Success: false, Msg: "验证码错误，请重试", Data: []string{}})
+		return
+	}
+	// 验证成功后的逻辑
+	findUser, _err := user.svc.FindOrCreate(ctx, req.Phone)
+	if _err != nil {
+		ctx.JSON(http.StatusOK, utils.Result{Code: 500, Success: false, Msg: "系统错误", Data: []string{}})
+		return
+	}
+	_err = user.setJWTToken(ctx, findUser.Id)
+	if _err != nil {
+		ctx.JSON(http.StatusOK, utils.Result{Code: 500, Success: false, Msg: "系统错误", Data: []string{}})
+		return
+	}
+	ctx.JSON(http.StatusOK, utils.Result{Code: 200, Success: true, Msg: "验证成功", Data: []string{}})
+	return
 }

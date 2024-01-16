@@ -4,11 +4,17 @@ import (
 	"context"
 	"fmt"
 	"gin_learn/webook/internal/repository"
+	"gin_learn/webook/internal/repository/cache"
 	"gin_learn/webook/internal/service/sms"
 	"math/rand"
 )
 
 const codeTplId = "18775556"
+
+var (
+	ErrCodeSendTooMany   = cache.ErrCodeSendTooMany
+	ErrCodeVerifyTooMany = cache.ErrCodeVerifyTooMany
+)
 
 type CodeService struct {
 	repo   *repository.CodeRepository

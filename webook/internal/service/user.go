@@ -59,3 +59,19 @@ func (svc *UserService) Edit(ctx context.Context, up domain.UserProfile) error {
 func (svc *UserService) Profile(ctx context.Context, userId int64) (domain.UserProfile, error) {
 	return svc.repo.FindProfileByUserId(ctx, userId)
 }
+
+func (user *UserService) FindOrCreate(ctx context.Context, phone string) (domain.User, error) {
+	u, err := user.repo.FindByPhone(ctx, phone)
+	if !errors.Is(err, repository.ErrUserNotFount) {
+		return u, err
+	}
+	u = domain.User{
+		Phone: phone,
+	}
+	err = user.repo.Create(ctx, u)
+	if err != nil {
+		return u, err
+	}
+	// 可能会碰到主从延迟问题
+	return user.repo.FindByPhone(ctx, phone)
+}
