@@ -16,21 +16,26 @@ var (
 	ErrCodeVerifyTooMany = cache.ErrCodeVerifyTooMany
 )
 
-type CodeService struct {
-	repo   *repository.CodeRepository
+type CodeService interface {
+	Send(ctx context.Context, biz string, phoneNum string) error
+	Verify(ctx context.Context, biz string, phoneNum string, inputCode string) (bool, error)
+}
+
+type RSTCodeService struct {
+	repo   repository.CodeRepository
 	smsSvc sms.Service
 	tplId  string
 }
 
-func NewCodeService(repo *repository.CodeRepository, smsSvc sms.Service, tplId string) *CodeService {
-	return &CodeService{
+func NewCodeService(repo repository.CodeRepository, smsSvc sms.Service, tplId string) CodeService {
+	return &RSTCodeService{
 		repo:   repo,
 		smsSvc: smsSvc,
 		tplId:  tplId,
 	}
 }
 
-func (cs *CodeService) Send(ctx context.Context, biz string, phoneNum string) error {
+func (cs *RSTCodeService) Send(ctx context.Context, biz string, phoneNum string) error {
 	// 生成验证码
 	code := cs.generateCode()
 	// 放进redis
@@ -43,11 +48,11 @@ func (cs *CodeService) Send(ctx context.Context, biz string, phoneNum string) er
 	return err
 }
 
-func (cs *CodeService) Verify(ctx context.Context, biz string, phoneNum string, inputCode string) (bool, error) {
+func (cs *RSTCodeService) Verify(ctx context.Context, biz string, phoneNum string, inputCode string) (bool, error) {
 	return cs.repo.Verify(ctx, biz, phoneNum, inputCode)
 }
 
-func (cs *CodeService) generateCode() string {
+func (cs *RSTCodeService) generateCode() string {
 	num := rand.Intn(1000000)
 	return fmt.Sprintf("%06d", num)
 }

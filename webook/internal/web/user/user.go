@@ -17,8 +17,8 @@ import (
 
 // UserHandler 定义所有有关user的路由
 type UserHandler struct {
-	svc         *service.UserService
-	codeSvc     *service.CodeService
+	svc         service.UserService
+	codeSvc     service.CodeService
 	emailExp    *regexp.Regexp
 	nicknameExp *regexp.Regexp
 	birthdayExp *regexp.Regexp
@@ -33,7 +33,7 @@ type UserClaims struct {
 	UserAgent string
 }
 
-func NewUserHandler(svc *service.UserService, codeSvc *service.CodeService) *UserHandler {
+func NewUserHandler(svc service.UserService, codeSvc service.CodeService) *UserHandler {
 	emailExp := regexp.MustCompile(emailRegexPattern, regexp.None)
 	passwordExp := regexp.MustCompile(passwordRegexPattern, regexp.None)
 	nicknameExp := regexp.MustCompile(nicknameRegexPattern, regexp.None)
