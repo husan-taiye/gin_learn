@@ -17,7 +17,7 @@ type UserRepository struct {
 	cache *cache.UserCache
 }
 
-var ErrUserDuplicateEmail = dao.ErrUserDuplicateEmail
+var ErrUserDuplicate = dao.ErrUserDuplicate
 var ErrUserNotFount = dao.ErrUserNotFount
 
 func NewUserRepository(dao *dao.UserDao, cache *cache.UserCache) *UserRepository {

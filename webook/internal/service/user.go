@@ -9,7 +9,7 @@ import (
 	"gorm.io/gorm"
 )
 
-var ErrUserDuplicateEmail = repository.ErrUserDuplicateEmail
+var ErrUserDuplicate = repository.ErrUserDuplicate
 var ErrInvalidUserOrPassword = errors.New("账号/邮箱或密码不对")
 var ErrUserNotFount = repository.ErrUserNotFount
 
@@ -74,4 +74,16 @@ func (user *UserService) FindOrCreate(ctx context.Context, phone string) (domain
 	}
 	// 可能会碰到主从延迟问题
 	return user.repo.FindByPhone(ctx, phone)
+}
+
+//type PathsDownGrade struct {
+//	Quick
+//}
+
+func PathsDownGrade(ctx context.Context, quick, slow func()) {
+	quick()
+	if ctx.Value("降级") == "true" {
+		return
+	}
+	slow()
 }
