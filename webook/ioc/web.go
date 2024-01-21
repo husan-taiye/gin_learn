@@ -1,7 +1,6 @@
 package ioc
 
 import (
-	"gin_learn/webook/internal/web"
 	"gin_learn/webook/internal/web/middleware"
 	"gin_learn/webook/internal/web/user"
 	"github.com/gin-contrib/cors"
@@ -13,8 +12,7 @@ import (
 func InitGin(middles []gin.HandlerFunc, handler *user.UserHandler) *gin.Engine {
 	server := gin.Default()
 	server.Use(middles...)
-	ug := web.DispatchRoutes(server)
-	handler.RegisterUserRouter(ug)
+	handler.RegisterUserRouter(server)
 	return server
 }
 

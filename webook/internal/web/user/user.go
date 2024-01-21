@@ -97,8 +97,8 @@ func (user *UserHandler) SignUp(ctx *gin.Context) {
 		Password: req.Password,
 	})
 	if errors.Is(err, service.ErrUserDuplicate) {
-		//ctx.String(http.StatusOK, "邮箱重复")
-		ctx.JSON(http.StatusOK, map[string]any{"msg": "邮箱重复", "success": false})
+		ctx.String(http.StatusOK, "邮箱重复")
+		//ctx.JSON(http.StatusOK, map[string]any{"msg": "邮箱重复", "success": false})
 		return
 	}
 	if err != nil {

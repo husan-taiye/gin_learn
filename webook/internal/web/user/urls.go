@@ -2,14 +2,15 @@ package user
 
 import "github.com/gin-gonic/gin"
 
-func (user *UserHandler) RegisterUserRouter(rg *gin.RouterGroup) {
-	rg.POST("/signup", user.SignUp)
-	rg.POST("/login", user.Login)
-	rg.POST("/login_jwt", user.LoginJWT)
-	rg.POST("/edit", user.Edit)
+func (user *UserHandler) RegisterUserRouter(server *gin.Engine) {
+	ug := server.Group("/user")
+	ug.POST("/signup", user.SignUp)
+	ug.POST("/login", user.Login)
+	ug.POST("/login_jwt", user.LoginJWT)
+	ug.POST("/edit", user.Edit)
 	//rg.GET("/profile", user.Profile)
-	rg.GET("/profile", user.ProfileJWT)
+	ug.GET("/profile", user.ProfileJWT)
 
-	rg.POST("login_sms/code/send", user.SendCode)
-	rg.POST("login_sms", user.LoginSms)
+	ug.POST("login_sms/code/send", user.SendCode)
+	ug.POST("login_sms", user.LoginSms)
 }
