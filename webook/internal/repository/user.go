@@ -15,6 +15,7 @@ import (
 type UserRepository interface {
 	FindByEmail(ctx context.Context, email string) (domain.User, error)
 	FindByPhone(ctx context.Context, phone string) (domain.User, error)
+	FindByWechat(ctx context.Context, openID string) (domain.User, error)
 	Create(ctx context.Context, u domain.User) error
 	Update(ctx context.Context, up domain.UserProfile) error
 	FindProfileByUserId(ctx context.Context, userId int64) (domain.UserProfile, error)
@@ -45,6 +46,14 @@ func (ur *DCUserRepository) FindByEmail(ctx context.Context, email string) (doma
 
 func (ur *DCUserRepository) FindByPhone(ctx context.Context, phone string) (domain.User, error) {
 	u, err := ur.dao.FindByPhone(ctx, phone)
+	if err != nil {
+		return domain.User{}, err
+	}
+	return ur.modelToDomain(u), nil
+}
+
+func (ur *DCUserRepository) FindByWechat(ctx context.Context, openId string) (domain.User, error) {
+	u, err := ur.dao.FindByWechat(ctx, openId)
 	if err != nil {
 		return domain.User{}, err
 	}
@@ -131,6 +140,10 @@ func (ur *DCUserRepository) domainToModel(du domain.User) dao.User {
 			String: du.Phone,
 			Valid:  du.Phone != "",
 		},
+		OpenId: sql.NullString{
+			String: du.OpenId,
+			Valid:  du.OpenId != "",
+		},
 		Password: du.Password,
 	}
 }
@@ -141,5 +154,6 @@ func (ur *DCUserRepository) modelToDomain(ud dao.User) domain.User {
 		Email:    ud.Email.String,
 		Phone:    ud.Phone.String,
 		Password: ud.Password,
+		OpenId:   ud.OpenId.String,
 	}
 }

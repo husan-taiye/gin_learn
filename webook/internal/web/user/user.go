@@ -10,9 +10,7 @@ import (
 	regexp "github.com/dlclark/regexp2"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
-	jwt "github.com/golang-jwt/jwt/v5"
 	"net/http"
-	"time"
 )
 
 // UserHandler 定义所有有关user的路由
@@ -24,21 +22,15 @@ type UserHandler struct {
 	birthdayExp *regexp.Regexp
 	profileExp  *regexp.Regexp
 	passwordExp *regexp.Regexp
-}
-
-type UserClaims struct {
-	jwt.RegisteredClaims
-	// 生命要放进token里面的数据
-	Uid       int64
-	UserAgent string
+	utils.JwtHandler
 }
 
 func NewUserHandler(svc service.UserService, codeSvc service.CodeService) *UserHandler {
-	emailExp := regexp.MustCompile(emailRegexPattern, regexp.None)
-	passwordExp := regexp.MustCompile(passwordRegexPattern, regexp.None)
-	nicknameExp := regexp.MustCompile(nicknameRegexPattern, regexp.None)
-	birthdayExp := regexp.MustCompile(birthdayRegexPattern, regexp.None)
-	profileExp := regexp.MustCompile(profileRegexPattern, regexp.None)
+	emailExp := regexp.MustCompile(EmailRegexPattern, regexp.None)
+	passwordExp := regexp.MustCompile(PasswordRegexPattern, regexp.None)
+	nicknameExp := regexp.MustCompile(NicknameRegexPattern, regexp.None)
+	birthdayExp := regexp.MustCompile(BirthdayRegexPattern, regexp.None)
+	profileExp := regexp.MustCompile(ProfileRegexPattern, regexp.None)
 	return &UserHandler{
 		svc:         svc,
 		codeSvc:     codeSvc,
@@ -48,6 +40,19 @@ func NewUserHandler(svc service.UserService, codeSvc service.CodeService) *UserH
 		birthdayExp: birthdayExp,
 		profileExp:  profileExp,
 	}
+}
+
+func (user *UserHandler) RegisterUserRouter(server *gin.Engine) {
+	ug := server.Group("/user")
+	ug.POST("/signup", user.SignUp)
+	ug.POST("/login", user.Login)
+	ug.POST("/login_jwt", user.LoginJWT)
+	ug.POST("/edit", user.Edit)
+	//rg.GET("/profile", user.Profile)
+	ug.GET("/profile", user.ProfileJWT)
+
+	ug.POST("login_sms/code/send", user.SendCode)
+	ug.POST("login_sms", user.LoginSms)
 }
 
 func (user *UserHandler) SignUp(ctx *gin.Context) {
@@ -91,7 +96,7 @@ func (user *UserHandler) SignUp(ctx *gin.Context) {
 		return
 	}
 
-	// service 层
+	// wechat 层
 	err = user.svc.SignUp(ctx, domain.User{
 		Email:    req.Email,
 		Password: req.Password,
@@ -143,32 +148,13 @@ func (user *UserHandler) LoginJWT(ctx *gin.Context) {
 	//if err != nil {
 	//	return
 	//}
-	if err = user.setJWTToken(ctx, findUser.Id); err != nil {
+	if err = user.SetJWTToken(ctx, findUser.Id); err != nil {
 		ctx.JSON(http.StatusInternalServerError, map[string]any{"msg": "系统错误", "success": false})
 		return
 	}
 	fmt.Println(findUser)
 	ctx.JSON(http.StatusOK, map[string]any{"msg": "登录成功", "success": true})
 	return
-}
-
-func (user *UserHandler) setJWTToken(ctx *gin.Context, uId int64) error {
-	claims := UserClaims{
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute * 60)),
-		},
-		UserAgent: ctx.Request.UserAgent(),
-		Uid:       uId,
-	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenStr, err := token.SignedString([]byte("r4BKnmqBgWhnudRc4xufW9f97ODTqX10"))
-	if err != nil {
-
-		return err
-	}
-	fmt.Println(tokenStr)
-	ctx.Header("x-jwt-token", tokenStr)
-	return nil
 }
 
 func (user *UserHandler) Login(ctx *gin.Context) {
@@ -251,7 +237,7 @@ func (user *UserHandler) Edit(ctx *gin.Context) {
 
 	// 获取userId
 	c, _ := ctx.Get("claims")
-	claims, ok := c.(*UserClaims)
+	claims, ok := c.(*utils.UserClaims)
 	if !ok {
 		// 监控输出
 		ctx.String(http.StatusOK, "系统错误")
@@ -292,7 +278,7 @@ func (user *UserHandler) Profile(ctx *gin.Context) {
 }
 func (user *UserHandler) ProfileJWT(ctx *gin.Context) {
 	c, _ := ctx.Get("claims")
-	claims, ok := c.(*UserClaims)
+	claims, ok := c.(*utils.UserClaims)
 	if !ok {
 		// 监控输出
 		ctx.String(http.StatusOK, "系统错误")
@@ -361,7 +347,7 @@ func (user *UserHandler) LoginSms(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, utils.Result{Code: 500, Success: false, Msg: "系统错误", Data: []string{}})
 		return
 	}
-	_err = user.setJWTToken(ctx, findUser.Id)
+	_err = user.SetJWTToken(ctx, findUser.Id)
 	if _err != nil {
 		ctx.JSON(http.StatusOK, utils.Result{Code: 500, Success: false, Msg: "系统错误", Data: []string{}})
 		return

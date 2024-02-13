@@ -17,6 +17,7 @@ var (
 type UserDao interface {
 	FindByEmail(ctx context.Context, email string) (User, error)
 	FindByPhone(ctx context.Context, phone string) (User, error)
+	FindByWechat(ctx context.Context, openId string) (User, error)
 	Insert(ctx context.Context, u User) error
 	Update(ctx context.Context, up UserProfile) error
 	FindProfileByUserId(ctx context.Context, userId int64) (UserProfile, error)
@@ -45,6 +46,14 @@ func (dao *GormUserDao) FindByPhone(ctx context.Context, phone string) (User, er
 	//err := dao.db.WithContext(ctx).First(&u, "email = ?", email).Error
 	return u, err
 }
+
+func (dao *GormUserDao) FindByWechat(ctx context.Context, openId string) (User, error) {
+	var u User
+	err := dao.db.WithContext(ctx).Where("openid = ?", openId).First(&u).Error
+	//err := dao.db.WithContext(ctx).First(&u, "email = ?", email).Error
+	return u, err
+}
+
 func (dao *GormUserDao) Insert(ctx context.Context, u User) error {
 	now := time.Now().UnixMilli()
 	u.CreateTime = now
@@ -96,6 +105,7 @@ type User struct {
 	Id       int64          `gorm:"primaryKey,autoIncrement"`
 	Email    sql.NullString `gorm:"unique"`
 	Phone    sql.NullString `gorm:"unique"`
+	OpenId   sql.NullString `gorm:"unique"`
 	Password string
 
 	CreateTime int64

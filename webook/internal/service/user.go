@@ -19,6 +19,7 @@ type UserService interface {
 	Edit(ctx context.Context, up domain.UserProfile) error
 	Profile(ctx context.Context, userId int64) (domain.UserProfile, error)
 	FindOrCreate(ctx context.Context, phone string) (domain.User, error)
+	FindOrCreateByWechat(ctx context.Context, openId string) (domain.User, error)
 }
 
 type RepoUserService struct {
@@ -68,20 +69,36 @@ func (svc *RepoUserService) Profile(ctx context.Context, userId int64) (domain.U
 	return svc.repo.FindProfileByUserId(ctx, userId)
 }
 
-func (user *RepoUserService) FindOrCreate(ctx context.Context, phone string) (domain.User, error) {
-	u, err := user.repo.FindByPhone(ctx, phone)
+func (svc *RepoUserService) FindOrCreate(ctx context.Context, phone string) (domain.User, error) {
+	u, err := svc.repo.FindByPhone(ctx, phone)
 	if !errors.Is(err, repository.ErrUserNotFount) {
 		return u, err
 	}
 	u = domain.User{
 		Phone: phone,
 	}
-	err = user.repo.Create(ctx, u)
+	err = svc.repo.Create(ctx, u)
 	if err != nil {
 		return u, err
 	}
 	// 可能会碰到主从延迟问题
-	return user.repo.FindByPhone(ctx, phone)
+	return svc.repo.FindByPhone(ctx, phone)
+}
+
+func (svc *RepoUserService) FindOrCreateByWechat(ctx context.Context, openId string) (domain.User, error) {
+	u, err := svc.repo.FindByWechat(ctx, openId)
+	if !errors.Is(err, repository.ErrUserNotFount) {
+		return u, err
+	}
+	u = domain.User{
+		OpenId: openId,
+	}
+	err = svc.repo.Create(ctx, u)
+	if err != nil {
+		return u, err
+	}
+	// 可能会碰到主从延迟问题
+	return svc.repo.FindByWechat(ctx, openId)
 }
 
 //type PathsDownGrade struct {

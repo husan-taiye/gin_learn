@@ -2,7 +2,7 @@ package middleware
 
 import (
 	"encoding/gob"
-	"gin_learn/webook/internal/web/user"
+	"gin_learn/webook/internal/web/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"log"
@@ -15,7 +15,7 @@ type loginJWTMiddlewareBuilder struct {
 	paths []string
 }
 
-func NewloginJWTMiddlewareBuilder() *loginJWTMiddlewareBuilder {
+func NewLoginJWTMiddlewareBuilder() *loginJWTMiddlewareBuilder {
 	return &loginJWTMiddlewareBuilder{}
 }
 func (l *loginJWTMiddlewareBuilder) IgnorePaths(path string) *loginJWTMiddlewareBuilder {
@@ -36,7 +36,7 @@ func (l *loginJWTMiddlewareBuilder) Build() gin.HandlerFunc {
 			ctx.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
-		claims := &user.UserClaims{}
+		claims := &utils.UserClaims{}
 		// ParseWithClaims一定要穿指针
 		token, err := jwt.ParseWithClaims(tokenHeader, claims, func(token *jwt.Token) (interface{}, error) {
 			return []byte("r4BKnmqBgWhnudRc4xufW9f97ODTqX10"), nil

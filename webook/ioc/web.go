@@ -1,6 +1,7 @@
 package ioc
 
 import (
+	"gin_learn/webook/internal/web"
 	"gin_learn/webook/internal/web/middleware"
 	"gin_learn/webook/internal/web/user"
 	"github.com/gin-contrib/cors"
@@ -9,19 +10,21 @@ import (
 	"time"
 )
 
-func InitGin(middles []gin.HandlerFunc, handler *user.UserHandler) *gin.Engine {
+func InitGin(middles []gin.HandlerFunc, userHandler *user.UserHandler, OAuth2Handler *web.OAuth2WechatHandler) *gin.Engine {
 	server := gin.Default()
 	server.Use(middles...)
-	handler.RegisterUserRouter(server)
+	userHandler.RegisterUserRouter(server)
+	OAuth2Handler.RegisterRoutes(server)
 	return server
 }
 
 func InitMiddlewares() []gin.HandlerFunc {
 	return []gin.HandlerFunc{
 		corsHandler(),
-		middleware.NewloginJWTMiddlewareBuilder().
+		middleware.NewLoginJWTMiddlewareBuilder().
 			IgnorePaths("/user/signup").
 			IgnorePaths("/user/login_sms/code/send").
+			IgnorePaths("/oauth/wechat/auth_url").
 			IgnorePaths("/user/login_sms").
 			IgnorePaths("/user/login").Build(),
 	}

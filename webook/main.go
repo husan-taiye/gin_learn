@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/gin-gonic/gin"
 	"net/http"
+	"os"
 )
 
 func main() {
@@ -13,13 +14,14 @@ func main() {
 	//
 	//ug := web.DispatchRoutes(server)
 	//userHandler.RegisterUserRouter(ug)
-
+	err := os.Setenv("WECHAT_APP_ID", "27017")
+	err = os.Setenv("WECHAT_APP_SECRET", "27017")
 	server := InitWebServer()
 	//server := gin.Default()
 	server.GET("hello", func(ctx *gin.Context) {
 		ctx.String(http.StatusOK, "hello~")
 	})
-	err := server.Run(":8080")
+	err = server.Run(":8080")
 	if err != nil {
 		return
 	}
@@ -29,12 +31,12 @@ func main() {
 //	ud := dao2.NewUserDao(db)
 //	userCache := cache.NewUserCache(client)
 //	repo := repository.NewUserRepository(ud, userCache)
-//	svc := service.NewUserService(repo)
+//	svc := wechat.NewUserService(repo)
 //	// code初始化
 //	codeCache := cache.NewCodeCache(client)
 //	codeRepo := repository.NewCodeRepository(codeCache)
 //	smsSvc := memory.NewService()
-//	codeSvc := service.NewCodeService(codeRepo, smsSvc, "22321")
+//	codeSvc := wechat.NewCodeService(codeRepo, smsSvc, "22321")
 //	u := user.NewUserHandler(svc, codeSvc)
 //	return u
 //}

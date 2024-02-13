@@ -7,6 +7,7 @@ import (
 	"gin_learn/webook/internal/repository/cache"
 	"gin_learn/webook/internal/repository/dao"
 	"gin_learn/webook/internal/service"
+	"gin_learn/webook/internal/web"
 	"gin_learn/webook/internal/web/user"
 	"gin_learn/webook/ioc"
 	"github.com/gin-gonic/gin"
@@ -30,7 +31,9 @@ func InitWebServer() *gin.Engine {
 		ioc.InitSMSService,
 		// handler
 		user.NewUserHandler,
+		web.NewOAuth2WechatHandler,
 		ioc.InitGin,
+		ioc.InitWechatService,
 		ioc.InitMiddlewares,
 		ioc.InitTpl,
 	)

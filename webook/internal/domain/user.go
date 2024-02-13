@@ -4,6 +4,7 @@ type User struct {
 	Id       int64
 	Phone    string
 	Email    string
+	OpenId   string
 	Password string
 }
 
