@@ -2,7 +2,7 @@ package middleware
 
 import (
 	"encoding/gob"
-	"gin_learn/webook/internal/web/utils"
+	ijwt "gin_learn/webook/internal/web/jwt"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"net/http"
@@ -10,19 +10,22 @@ import (
 )
 
 // jwt 登录校验
-type loginJWTMiddlewareBuilder struct {
+type LoginJWTMiddlewareBuilder struct {
 	paths []string
+	ijwt.Handler
 }
 
-func NewLoginJWTMiddlewareBuilder() *loginJWTMiddlewareBuilder {
-	return &loginJWTMiddlewareBuilder{}
+func NewLoginJWTMiddlewareBuilder(jwtHdl ijwt.Handler) *LoginJWTMiddlewareBuilder {
+	return &LoginJWTMiddlewareBuilder{
+		Handler: jwtHdl,
+	}
 }
-func (l *loginJWTMiddlewareBuilder) IgnorePaths(path string) *loginJWTMiddlewareBuilder {
+func (l *LoginJWTMiddlewareBuilder) IgnorePaths(path string) *LoginJWTMiddlewareBuilder {
 	l.paths = append(l.paths, path)
 	return l
 }
 
-func (l *loginJWTMiddlewareBuilder) Build() gin.HandlerFunc {
+func (l *LoginJWTMiddlewareBuilder) Build() gin.HandlerFunc {
 	gob.Register(time.Now())
 	return func(ctx *gin.Context) {
 		for _, path := range l.paths {
@@ -35,7 +38,7 @@ func (l *loginJWTMiddlewareBuilder) Build() gin.HandlerFunc {
 			ctx.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
-		claims := &utils.UserClaims{}
+		claims := &ijwt.UserClaims{}
 		// ParseWithClaims一定要穿指针
 		token, err := jwt.ParseWithClaims(tokenHeader, claims, func(token *jwt.Token) (interface{}, error) {
 			return []byte("r4BKnmqBgWhnudRc4xufW9f97ODTqX10"), nil
@@ -49,6 +52,12 @@ func (l *loginJWTMiddlewareBuilder) Build() gin.HandlerFunc {
 			return
 		}
 		if claims.UserAgent != ctx.Request.UserAgent() {
+			ctx.AbortWithStatus(http.StatusUnauthorized)
+			return
+		}
+		// ssid 校验
+		err = l.CheckSession(ctx, claims.Ssid)
+		if err != nil {
 			ctx.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}

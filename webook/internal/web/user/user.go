@@ -6,11 +6,13 @@ import (
 	"gin_learn/webook/internal/domain"
 	"gin_learn/webook/internal/repository/cache"
 	"gin_learn/webook/internal/service"
+	ijwt "gin_learn/webook/internal/web/jwt"
 	"gin_learn/webook/internal/web/utils"
 	regexp "github.com/dlclark/regexp2"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/redis/go-redis/v9"
 	"net/http"
 )
 
@@ -23,10 +25,11 @@ type UserHandler struct {
 	birthdayExp *regexp.Regexp
 	profileExp  *regexp.Regexp
 	passwordExp *regexp.Regexp
-	utils.JwtHandler
+	cmd         redis.Cmdable
+	ijwt.Handler
 }
 
-func NewUserHandler(svc service.UserService, codeSvc service.CodeService) *UserHandler {
+func NewUserHandler(svc service.UserService, codeSvc service.CodeService, jwtHdl ijwt.Handler) *UserHandler {
 	emailExp := regexp.MustCompile(EmailRegexPattern, regexp.None)
 	passwordExp := regexp.MustCompile(PasswordRegexPattern, regexp.None)
 	nicknameExp := regexp.MustCompile(NicknameRegexPattern, regexp.None)
@@ -40,7 +43,7 @@ func NewUserHandler(svc service.UserService, codeSvc service.CodeService) *UserH
 		nicknameExp: nicknameExp,
 		birthdayExp: birthdayExp,
 		profileExp:  profileExp,
-		JwtHandler:  utils.NewJwtHandler(),
+		Handler:     jwtHdl,
 	}
 }
 
@@ -49,6 +52,8 @@ func (user *UserHandler) RegisterUserRouter(server *gin.Engine) {
 	ug.POST("/signup", user.SignUp)
 	ug.POST("/login", user.Login)
 	ug.POST("/login_jwt", user.LoginJWT)
+	ug.POST("/logout_jwt", user.LogoutJWT)
+	ug.POST("/logout", user.Logout)
 	ug.POST("/edit", user.Edit)
 	//rg.GET("/profile", user.Profile)
 	ug.GET("/profile", user.ProfileJWT)
@@ -57,17 +62,54 @@ func (user *UserHandler) RegisterUserRouter(server *gin.Engine) {
 	ug.POST("login_sms", user.LoginSms)
 	ug.POST("refresh_token", user.RefreshToken)
 }
+
+func (user *UserHandler) Logout(ctx *gin.Context) {
+	sess := sessions.Default(ctx)
+	sess.Options(sessions.Options{MaxAge: -1})
+	err := sess.Save()
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, utils.Result{
+			Msg: "系统异常",
+		})
+		return
+	}
+	ctx.JSON(http.StatusOK, utils.Result{
+		Msg: "退出登录成功",
+	})
+	return
+}
+
+func (user *UserHandler) LogoutJWT(ctx *gin.Context) {
+	err := user.ClearToken(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, utils.Result{
+			Msg: "系统异常",
+		})
+		return
+	}
+	ctx.JSON(http.StatusOK, utils.Result{
+		Msg: "退出登录成功",
+	})
+	return
+
+}
+
 func (user *UserHandler) RefreshToken(ctx *gin.Context) {
 	refreshToken := ctx.GetHeader("Authorization")
-	var rc utils.RefreshClaims
+	var rc ijwt.RefreshClaims
 	token, err := jwt.ParseWithClaims(refreshToken, &rc, func(token *jwt.Token) (interface{}, error) {
-		return user.RtKey, nil
+		return ijwt.RtKey, nil
 	})
 	if err != nil || !token.Valid {
 		ctx.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
-	err = user.SetJWTToken(ctx, rc.Uid)
+	err = user.CheckSession(ctx, rc.Ssid)
+	if err != nil {
+		ctx.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+	err = user.SetJWTToken(ctx, rc.Uid, rc.Ssid)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, utils.Result{Msg: "系统异常"})
 	}
@@ -168,11 +210,11 @@ func (user *UserHandler) LoginJWT(ctx *gin.Context) {
 	//if err != nil {
 	//	return
 	//}
-	if err = user.SetJWTToken(ctx, findUser.Id); err != nil {
-		ctx.JSON(http.StatusInternalServerError, map[string]any{"msg": "系统错误", "success": false})
-		return
-	}
-	if err = user.SetRefreshToken(ctx, findUser.Id); err != nil {
+	//if err = user.SetJWTToken(ctx, findUser.Id); err != nil {
+	//	ctx.JSON(http.StatusInternalServerError, map[string]any{"msg": "系统错误", "success": false})
+	//	return
+	//}
+	if err = user.SetLoginToken(ctx, findUser.Id); err != nil {
 		ctx.JSON(http.StatusInternalServerError, map[string]any{"msg": "系统错误", "success": false})
 		return
 	}
@@ -261,7 +303,7 @@ func (user *UserHandler) Edit(ctx *gin.Context) {
 
 	// 获取userId
 	c, _ := ctx.Get("claims")
-	claims, ok := c.(*utils.UserClaims)
+	claims, ok := c.(*ijwt.UserClaims)
 	if !ok {
 		// 监控输出
 		ctx.String(http.StatusOK, "系统错误")
@@ -302,7 +344,7 @@ func (user *UserHandler) Profile(ctx *gin.Context) {
 }
 func (user *UserHandler) ProfileJWT(ctx *gin.Context) {
 	c, _ := ctx.Get("claims")
-	claims, ok := c.(*utils.UserClaims)
+	claims, ok := c.(ijwt.UserClaims)
 	if !ok {
 		// 监控输出
 		ctx.String(http.StatusOK, "系统错误")
@@ -371,12 +413,12 @@ func (user *UserHandler) LoginSms(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, utils.Result{Code: 500, Success: false, Msg: "系统错误", Data: []string{}})
 		return
 	}
-	_err = user.SetJWTToken(ctx, findUser.Id)
-	if _err != nil {
-		ctx.JSON(http.StatusOK, utils.Result{Code: 500, Success: false, Msg: "系统错误", Data: []string{}})
-		return
-	}
-	_err = user.SetRefreshToken(ctx, findUser.Id)
+	//_err = user.SetJWTToken(ctx, findUser.Id)
+	//if _err != nil {
+	//	ctx.JSON(http.StatusOK, utils.Result{Code: 500, Success: false, Msg: "系统错误", Data: []string{}})
+	//	return
+	//}
+	_err = user.SetLoginToken(ctx, findUser.Id)
 	if _err != nil {
 		ctx.JSON(http.StatusOK, utils.Result{Code: 500, Success: false, Msg: "系统错误", Data: []string{}})
 		return

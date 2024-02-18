@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"gin_learn/webook/internal/service"
 	"gin_learn/webook/internal/service/oauth2/wechat"
+	ijwt "gin_learn/webook/internal/web/jwt"
 	"gin_learn/webook/internal/web/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -16,7 +17,7 @@ import (
 type OAuth2WechatHandler struct {
 	svc     wechat.Service
 	userSvc service.UserService
-	utils.JwtHandler
+	ijwt.Handler
 	stateKey []byte
 	cfg      WechatHandlerConfig
 }
@@ -25,10 +26,11 @@ type WechatHandlerConfig struct {
 	Secure bool
 }
 
-func NewOAuth2WechatHandler(svc wechat.Service, userSvc service.UserService, cfg WechatHandlerConfig) *OAuth2WechatHandler {
+func NewOAuth2WechatHandler(svc wechat.Service, userSvc service.UserService, cfg WechatHandlerConfig, jwtHdl ijwt.Handler) *OAuth2WechatHandler {
 	return &OAuth2WechatHandler{
 		svc:      svc,
 		userSvc:  userSvc,
+		Handler:  jwtHdl,
 		stateKey: []byte("r2BKnmqBgWhnudRc4xufW9f97ODTqX12"),
 		cfg:      cfg,
 	}
@@ -99,12 +101,12 @@ func (h *OAuth2WechatHandler) Callback(ctx *gin.Context) {
 		return
 	}
 
-	err = h.SetJWTToken(ctx, u.Id)
-	if err != nil {
-		ctx.JSON(http.StatusOK, utils.Result{Code: 5, Msg: "系统错误"})
-		return
-	}
-	err = h.SetRefreshToken(ctx, u.Id)
+	//err = h.SetJWTToken(ctx, u.Id)
+	//if err != nil {
+	//	ctx.JSON(http.StatusOK, utils.Result{Code: 5, Msg: "系统错误"})
+	//	return
+	//}
+	err = h.SetLoginToken(ctx, u.Id)
 	if err != nil {
 		ctx.JSON(http.StatusOK, utils.Result{Code: 5, Msg: "系统错误"})
 		return
