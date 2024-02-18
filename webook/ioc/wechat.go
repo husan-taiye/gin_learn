@@ -2,6 +2,7 @@ package ioc
 
 import (
 	"gin_learn/webook/internal/service/oauth2/wechat"
+	"gin_learn/webook/internal/web"
 	"os"
 )
 
@@ -16,4 +17,10 @@ func InitWechatService() wechat.Service {
 	}
 
 	return wechat.NewService(appId, appKey)
+}
+
+func NewWechatHandlerConfig() web.WechatHandlerConfig {
+	return web.WechatHandlerConfig{
+		Secure: false,
+	}
 }

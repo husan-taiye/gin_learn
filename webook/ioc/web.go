@@ -26,6 +26,7 @@ func InitMiddlewares() []gin.HandlerFunc {
 			IgnorePaths("/user/login_sms/code/send").
 			IgnorePaths("/oauth/wechat/auth_url").
 			IgnorePaths("/user/login_sms").
+			IgnorePaths("/user/login_jwt").
 			IgnorePaths("/user/login").Build(),
 	}
 }
@@ -38,7 +39,7 @@ func corsHandler() gin.HandlerFunc {
 	return cors.New(cors.Config{
 		AllowMethods:  []string{"PUT", "PATCH", "OPTIONS", "POST"},
 		AllowHeaders:  []string{"Origin", "Authorization"},
-		ExposeHeaders: []string{"Authorization", "Content-Type", "X-jwt-token"},
+		ExposeHeaders: []string{"Authorization", "Content-Type", "X-jwt-token", "X-refresh-token"},
 		// 是否允许带cookie
 		AllowCredentials: true,
 		// 下面两个都可以，二选一

@@ -10,6 +10,7 @@ import (
 	regexp "github.com/dlclark/regexp2"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 	"net/http"
 )
 
@@ -39,6 +40,7 @@ func NewUserHandler(svc service.UserService, codeSvc service.CodeService) *UserH
 		nicknameExp: nicknameExp,
 		birthdayExp: birthdayExp,
 		profileExp:  profileExp,
+		JwtHandler:  utils.NewJwtHandler(),
 	}
 }
 
@@ -53,6 +55,24 @@ func (user *UserHandler) RegisterUserRouter(server *gin.Engine) {
 
 	ug.POST("login_sms/code/send", user.SendCode)
 	ug.POST("login_sms", user.LoginSms)
+	ug.POST("refresh_token", user.RefreshToken)
+}
+func (user *UserHandler) RefreshToken(ctx *gin.Context) {
+	refreshToken := ctx.GetHeader("Authorization")
+	var rc utils.RefreshClaims
+	token, err := jwt.ParseWithClaims(refreshToken, &rc, func(token *jwt.Token) (interface{}, error) {
+		return user.RtKey, nil
+	})
+	if err != nil || !token.Valid {
+		ctx.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+	err = user.SetJWTToken(ctx, rc.Uid)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, utils.Result{Msg: "系统异常"})
+	}
+	ctx.JSON(http.StatusOK, utils.Result{Msg: "OK"})
+	return
 }
 
 func (user *UserHandler) SignUp(ctx *gin.Context) {
@@ -149,6 +169,10 @@ func (user *UserHandler) LoginJWT(ctx *gin.Context) {
 	//	return
 	//}
 	if err = user.SetJWTToken(ctx, findUser.Id); err != nil {
+		ctx.JSON(http.StatusInternalServerError, map[string]any{"msg": "系统错误", "success": false})
+		return
+	}
+	if err = user.SetRefreshToken(ctx, findUser.Id); err != nil {
 		ctx.JSON(http.StatusInternalServerError, map[string]any{"msg": "系统错误", "success": false})
 		return
 	}
@@ -348,6 +372,11 @@ func (user *UserHandler) LoginSms(ctx *gin.Context) {
 		return
 	}
 	_err = user.SetJWTToken(ctx, findUser.Id)
+	if _err != nil {
+		ctx.JSON(http.StatusOK, utils.Result{Code: 500, Success: false, Msg: "系统错误", Data: []string{}})
+		return
+	}
+	_err = user.SetRefreshToken(ctx, findUser.Id)
 	if _err != nil {
 		ctx.JSON(http.StatusOK, utils.Result{Code: 500, Success: false, Msg: "系统错误", Data: []string{}})
 		return
