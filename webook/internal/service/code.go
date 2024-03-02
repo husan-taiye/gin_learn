@@ -6,7 +6,7 @@ import (
 	"gin_learn/webook/internal/repository"
 	"gin_learn/webook/internal/repository/cache"
 	"gin_learn/webook/internal/service/sms"
-	"go.uber.org/zap"
+	"gin_learn/webook/pkg/logger"
 	"math/rand"
 )
 
@@ -25,11 +25,11 @@ type CodeService interface {
 type RSTCodeService struct {
 	repo   repository.CodeRepository
 	smsSvc sms.Service
-	logger *zap.Logger
+	logger logger.Logger
 	tplId  string
 }
 
-func NewCodeService(repo repository.CodeRepository, smsSvc sms.Service, tplId string, l *zap.Logger) CodeService {
+func NewCodeService(repo repository.CodeRepository, smsSvc sms.Service, tplId string, l logger.Logger) CodeService {
 	return &RSTCodeService{
 		repo:   repo,
 		smsSvc: smsSvc,

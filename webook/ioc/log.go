@@ -1,11 +1,14 @@
 package ioc
 
-import "go.uber.org/zap"
+import (
+	"gin_learn/webook/pkg/logger"
+	"go.uber.org/zap"
+)
 
-func InitLogger() *zap.Logger {
+func InitLogger() logger.Logger {
 	l, err := zap.NewDevelopment()
 	if err != nil {
 		panic(err)
 	}
-	return l
+	return logger.NewZapLogger(l)
 }

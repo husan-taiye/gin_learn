@@ -1,10 +1,13 @@
 package ioc
 
 import (
+	"context"
 	"gin_learn/webook/internal/web"
 	"gin_learn/webook/internal/web/jwt"
 	"gin_learn/webook/internal/web/middleware"
 	"gin_learn/webook/internal/web/user"
+	"gin_learn/webook/pkg/ginx/middleware/logger"
+	log "gin_learn/webook/pkg/logger"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"strings"
@@ -19,9 +22,12 @@ func InitGin(middles []gin.HandlerFunc, userHandler *user.UserHandler, OAuth2Han
 	return server
 }
 
-func InitMiddlewares(jwtHdl jwt.Handler) []gin.HandlerFunc {
+func InitMiddlewares(jwtHdl jwt.Handler, l log.Logger) []gin.HandlerFunc {
 	return []gin.HandlerFunc{
 		corsHandler(),
+		logger.NewBuilder(func(ctx context.Context, al *logger.AccessLog) {
+			l.Info("HTTP请求", log.Field{Key: "al", Value: al})
+		}).AllowReqBody().AllowRespBody().Build(),
 		middleware.NewLoginJWTMiddlewareBuilder(jwtHdl).
 			IgnorePaths("/user/signup").
 			IgnorePaths("/user/login_sms/code/send").
