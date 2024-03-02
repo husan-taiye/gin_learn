@@ -5,6 +5,7 @@ import (
 	"errors"
 	"gin_learn/webook/internal/domain"
 	"gin_learn/webook/internal/repository"
+	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
@@ -23,12 +24,14 @@ type UserService interface {
 }
 
 type RepoUserService struct {
-	repo repository.UserRepository
+	repo   repository.UserRepository
+	logger *zap.Logger
 }
 
-func NewUserService(repo repository.UserRepository) UserService {
+func NewUserService(repo repository.UserRepository, l *zap.Logger) UserService {
 	return &RepoUserService{
-		repo: repo,
+		repo:   repo,
+		logger: l,
 	}
 }
 

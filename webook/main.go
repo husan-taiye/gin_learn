@@ -2,12 +2,14 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"github.com/fsnotify/fsnotify"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	_ "github.com/spf13/viper/remote"
+	"go.uber.org/zap"
 	"net/http"
 	"os"
 )
@@ -26,6 +28,7 @@ func main() {
 	//initViperV1()
 	//initViperReader()
 	initViperV3Remote()
+	initLogger()
 	server := InitWebServer()
 	//server := gin.Default()
 	server.GET("hello", func(ctx *gin.Context) {
@@ -138,4 +141,21 @@ func initViperV3Remote() {
 	if err != nil {
 		panic(err)
 	}
+}
+
+func initLogger() {
+	logger, err := zap.NewDevelopment()
+	if err != nil {
+		panic(err)
+	}
+	zap.L().Info("replace之前")
+	// 如果不replace 什么都打不出来
+	zap.ReplaceGlobals(logger)
+	zap.L().Info("replace之后")
+	// zap第一个用法
+	zap.L().Error("发送验证码失败", zap.Error(err))
+	zap.L().Info("",
+		zap.Error(errors.New("日志初始化失败")),
+		zap.String("phone", "123"),
+	)
 }
