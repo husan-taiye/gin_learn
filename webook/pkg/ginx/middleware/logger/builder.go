@@ -8,6 +8,10 @@ import (
 	"time"
 )
 
+// MiddlewareBuilder 注意点
+// 1、小心日志内容过多 URL、请求体、响应体都可能过长
+// 2、考虑1的问题以及用户可能换用不同的日志框架。要有足够灵活性
+// 3、考虑动态开关、结合监听配置文件、小心并发安全 （原子操作 atomic.NewBool()）
 type MiddlewareBuilder struct {
 	allowReqBody  bool
 	allowRespBody bool
