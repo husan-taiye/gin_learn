@@ -344,7 +344,7 @@ func (user *UserHandler) Profile(ctx *gin.Context) {
 }
 func (user *UserHandler) ProfileJWT(ctx *gin.Context) {
 	c, _ := ctx.Get("claims")
-	claims, ok := c.(ijwt.UserClaims)
+	claims, ok := c.(*ijwt.UserClaims)
 	if !ok {
 		// 监控输出
 		ctx.String(http.StatusOK, "系统错误")

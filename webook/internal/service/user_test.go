@@ -66,7 +66,7 @@ func TestRepoUserService_Login(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
-			svc := NewUserService(tc.mock(ctrl))
+			svc := NewUserService(tc.mock(ctrl), nil)
 			user, err := svc.Login(context.Background(), tc.user)
 
 			assert.Equal(t, tc.wantUser, user)

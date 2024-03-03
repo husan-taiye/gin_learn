@@ -1,9 +1,8 @@
-package ioc
+package startup
 
 import (
 	"context"
 	"gin_learn/webook/internal/web"
-	"gin_learn/webook/internal/web/article"
 	"gin_learn/webook/internal/web/jwt"
 	"gin_learn/webook/internal/web/middleware"
 	"gin_learn/webook/internal/web/user"
@@ -15,14 +14,10 @@ import (
 	"time"
 )
 
-func InitGin(middles []gin.HandlerFunc,
-	userHandler *user.UserHandler,
-	OAuth2Handler *web.OAuth2WechatHandler,
-	articleHandler *article.ArticleHandler) *gin.Engine {
+func InitGin(middles []gin.HandlerFunc, userHandler *user.UserHandler, OAuth2Handler *web.OAuth2WechatHandler) *gin.Engine {
 	server := gin.Default()
 	server.Use(middles...)
 	userHandler.RegisterUserRouter(server)
-	articleHandler.RegisterRoutes(server)
 	OAuth2Handler.RegisterRoutes(server)
 	return server
 }
