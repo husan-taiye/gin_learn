@@ -28,15 +28,12 @@ func NewArticleHandler(svc service.ArticleService, logger logger.Logger) *Articl
 func (art *ArticleHandler) RegisterRoutes(server *gin.Engine) {
 	g := server.Group("/article")
 	g.POST("/edit", art.Edit)
+	g.POST("/publish", art.Publish)
 }
 
 func (art *ArticleHandler) Edit(ctx *gin.Context) {
-	type Req struct {
-		Id      int64  `json:"id"`
-		Title   string `json:"title"`
-		Content string `json:"content""`
-	}
-	var req Req
+
+	var req ArticleReq
 	if err := ctx.Bind(&req); err != nil {
 		return
 	}
@@ -53,18 +50,10 @@ func (art *ArticleHandler) Edit(ctx *gin.Context) {
 		art.logger.Error("未发现用户的 session 信息")
 		return
 	}
-	userId := claims.Uid
 
 	// 检测输入
 	// 调用service
-	id, err := art.svc.Save(ctx, domain.Article{
-		Id:      req.Id,
-		Title:   req.Title,
-		Content: req.Content,
-		Author: domain.Author{
-			Id: userId,
-		},
-	})
+	id, err := art.svc.Save(ctx, req.toDomain(claims.Uid))
 	if err != nil {
 		ctx.JSON(http.StatusOK, utils.Result{
 			Code: 5,
@@ -79,4 +68,58 @@ func (art *ArticleHandler) Edit(ctx *gin.Context) {
 		Data:    id,
 		Success: true,
 	})
+}
+
+func (art *ArticleHandler) Publish(ctx *gin.Context) {
+	var req ArticleReq
+	if err := ctx.Bind(&req); err != nil {
+		return
+	}
+
+	// 获取用户
+	c, _ := ctx.Get("claims")
+	claims, ok := c.(*ijwt.UserClaims)
+	if !ok {
+		// 监控输出
+		ctx.JSON(http.StatusOK, utils.Result{
+			Code: 5,
+			Msg:  "系统错误",
+		})
+		art.logger.Error("未发现用户的 session 信息")
+		return
+	}
+
+	id, err := art.svc.Publish(ctx, req.toDomain(claims.Uid))
+	if err != nil {
+		ctx.JSON(http.StatusOK, utils.Result{
+			Code:    5,
+			Msg:     "系统错误",
+			Success: false,
+		})
+		// 打日志
+		art.logger.Error("发表帖子失败", logger.Error(err))
+		return
+	}
+	ctx.JSON(http.StatusOK, utils.Result{
+		Msg:     "OK",
+		Data:    id,
+		Success: true,
+	})
+}
+
+type ArticleReq struct {
+	Id      int64  `json:"id"`
+	Title   string `json:"title"`
+	Content string `json:"content""`
+}
+
+func (req ArticleReq) toDomain(uid int64) domain.Article {
+	return domain.Article{
+		Id:      req.Id,
+		Title:   req.Title,
+		Content: req.Content,
+		Author: domain.Author{
+			Id: uid,
+		},
+	}
 }
