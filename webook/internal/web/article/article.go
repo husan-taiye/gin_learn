@@ -29,6 +29,7 @@ func (art *ArticleHandler) RegisterRoutes(server *gin.Engine) {
 	g := server.Group("/article")
 	g.POST("/edit", art.Edit)
 	g.POST("/publish", art.Publish)
+	g.POST("/withdraw", art.Withdraw)
 }
 
 func (art *ArticleHandler) Edit(ctx *gin.Context) {
@@ -105,6 +106,51 @@ func (art *ArticleHandler) Publish(ctx *gin.Context) {
 		Data:    id,
 		Success: true,
 	})
+}
+
+func (art *ArticleHandler) Withdraw(ctx *gin.Context) {
+	type Req struct {
+		Id int64
+	}
+	var req Req
+	if err := ctx.Bind(&req); err != nil {
+		return
+	}
+
+	// 获取用户
+	c, _ := ctx.Get("claims")
+	claims, ok := c.(*ijwt.UserClaims)
+	if !ok {
+		// 监控输出
+		ctx.JSON(http.StatusOK, utils.Result{
+			Code: 5,
+			Msg:  "系统错误",
+		})
+		art.logger.Error("未发现用户的 session 信息")
+		return
+	}
+
+	err := art.svc.Withdraw(ctx, domain.Article{
+		Id: req.Id,
+		Author: domain.Author{
+			Id: claims.Uid,
+		},
+	})
+	if err != nil {
+		ctx.JSON(http.StatusOK, utils.Result{
+			Code:    5,
+			Msg:     "系统错误",
+			Success: false,
+		})
+		// 打日志
+		art.logger.Error("发表帖子失败", logger.Error(err))
+		return
+	}
+	ctx.JSON(http.StatusOK, utils.Result{
+		Msg:     "OK",
+		Success: true,
+	})
+
 }
 
 type ArticleReq struct {

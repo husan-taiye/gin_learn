@@ -12,6 +12,7 @@ type ArticleRepository interface {
 	Update(ctx context.Context, article domain.Article) error
 	// Sync 存储并同步数据
 	Sync(ctx context.Context, article domain.Article) (int64, error)
+	SyncStatus(ctx context.Context, art domain.Article) error
 }
 type CacheArticleRepository struct {
 	dao adao.ArticleDAO
@@ -27,11 +28,16 @@ type CacheArticleRepository struct {
 	db *gorm.DB
 }
 
+func (c *CacheArticleRepository) SyncStatus(ctx context.Context, art domain.Article) error {
+	return c.dao.SyncStatus(ctx, art)
+}
+
 func (c *CacheArticleRepository) Create(ctx context.Context, article domain.Article) (int64, error) {
 	return c.dao.Insert(ctx, adao.Article{
 		Title:    article.Title,
 		Content:  article.Content,
 		AuthorId: article.Author.Id,
+		Status:   article.Status.ToUint8(),
 	})
 }
 
@@ -41,6 +47,7 @@ func (c *CacheArticleRepository) Update(ctx context.Context, article domain.Arti
 		Title:    article.Title,
 		Content:  article.Content,
 		AuthorId: article.Author.Id,
+		Status:   article.Status.ToUint8(),
 	})
 }
 
@@ -115,6 +122,7 @@ func (c *CacheArticleRepository) toEntity(article domain.Article) adao.Article {
 		Title:    article.Title,
 		Content:  article.Content,
 		AuthorId: article.Author.Id,
+		Status:   article.Status.ToUint8(),
 	}
 }
 

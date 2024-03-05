@@ -4,6 +4,7 @@ import "C"
 import (
 	"context"
 	"fmt"
+	"gin_learn/webook/internal/domain"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"time"
@@ -14,10 +15,34 @@ type ArticleDAO interface {
 	UpdateById(ctx context.Context, art Article) error
 	Sync(ctx context.Context, art Article) (int64, error)
 	Upsert(ctx context.Context, art PublishArticle) error
+	SyncStatus(ctx context.Context, art domain.Article) error
 }
 
 type GORMArticleDAO struct {
 	db *gorm.DB
+}
+
+func (dao *GORMArticleDAO) SyncStatus(ctx context.Context, art domain.Article) error {
+	now := time.Now().UnixMilli()
+	return dao.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		res := tx.Model(&Article{}).Where("id=? AND author_id=?", art.Id, art.Author.Id).
+			Updates(map[string]any{
+				"status": art.Status.ToUint8(),
+				"utime":  now,
+			})
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected != 1 {
+			return fmt.Errorf("撤回文章失败，可能是创作者非法 id %d ,author_id %d",
+				art.Id, art.Author.Id)
+		}
+		return tx.Model(&PublishArticle{}).Where("id=?", art.Id).
+			Updates(map[string]any{
+				"status": art.Status.ToUint8(),
+				"utime":  now,
+			}).Error
+	})
 }
 
 func (dao *GORMArticleDAO) Insert(ctx context.Context, art Article) (int64, error) {
@@ -40,6 +65,7 @@ func (dao *GORMArticleDAO) UpdateById(ctx context.Context, art Article) error {
 			"title":   art.Title,
 			"content": art.Content,
 			"utime":   art.Utime,
+			"status":  art.Status,
 		})
 	if res.Error != nil {
 		return res.Error
@@ -89,6 +115,7 @@ func (dao *GORMArticleDAO) Upsert(ctx context.Context, art PublishArticle) error
 		DoUpdates: clause.Assignments(map[string]interface{}{
 			"title":   art.Title,
 			"content": art.Content,
+			"status":  art.Status,
 			"utime":   art.Utime,
 		}),
 	}).Create(&art).Error
@@ -113,6 +140,10 @@ type Article struct {
 	// SELECT * FROM articles WHERE author_id = ? order by `utime` desc;
 	// 单独查询某一个 select * from articles where id = ?
 	AuthorId int64 `gorm:"index=aid_utime"`
-	Ctime    int64
-	Utime    int64 `gorm:"index=aid_utime"`
+
+	// 经常用状态查询
+	// 在status上 跟其他列混在一起创建联合索引
+	Status uint8
+	Ctime  int64
+	Utime  int64 `gorm:"index=aid_utime"`
 }

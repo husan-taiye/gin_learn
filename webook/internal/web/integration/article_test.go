@@ -3,6 +3,7 @@ package integration
 import (
 	"bytes"
 	"encoding/json"
+	"gin_learn/webook/internal/domain"
 	"gin_learn/webook/internal/repository/dao/article"
 	"gin_learn/webook/internal/web/integration/startup"
 	ijwt "gin_learn/webook/internal/web/jwt"
@@ -83,6 +84,7 @@ func (s *ArticleTestSuite) TestEdit() {
 					Title:    "my first title",
 					Content:  "xxxxx",
 					AuthorId: 123,
+					Status:   domain.ArticleStatusUnpublished.ToUint8(),
 				}, art)
 			},
 			art: Article{
@@ -104,6 +106,7 @@ func (s *ArticleTestSuite) TestEdit() {
 					Title:    "已有帖子",
 					Content:  "帖子内容",
 					AuthorId: 123,
+					Status:   domain.ArticleStatusUnpublished.ToUint8(),
 					Ctime:    1000,
 					Utime:    1000,
 				}).Error
@@ -122,6 +125,7 @@ func (s *ArticleTestSuite) TestEdit() {
 					Content:  "新的内容",
 					Ctime:    1000,
 					AuthorId: 123,
+					Status:   domain.ArticleStatusUnpublished.ToUint8(),
 				}, art)
 			},
 			art: Article{
