@@ -7,6 +7,7 @@ import (
 	article2 "gin_learn/webook/internal/repository/article"
 	"gin_learn/webook/internal/repository/cache"
 	"gin_learn/webook/internal/repository/dao"
+	article3 "gin_learn/webook/internal/repository/dao/article"
 	"gin_learn/webook/internal/service"
 	"gin_learn/webook/internal/web"
 	"gin_learn/webook/internal/web/article"
@@ -35,7 +36,7 @@ func InitWebServer() *gin.Engine {
 		userSvcProvider,
 		// dao,cache
 		cache.NewCodeCache,
-		dao.NewArticleDAO,
+		article3.NewArticleDAO,
 		// repo
 		repository.NewCodeRepository,
 		article2.NewArticleRepository,
@@ -64,7 +65,7 @@ func InitWebServer() *gin.Engine {
 func InitArticleHandler() *article.ArticleHandler {
 	wire.Build(thirdProvider,
 		article2.NewArticleRepository,
-		dao.NewArticleDAO,
+		article3.NewArticleDAO,
 		service.NewArticleService,
 		article.NewArticleHandler,
 	)

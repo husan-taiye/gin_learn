@@ -1,15 +1,19 @@
-package dao
+package article
 
+import "C"
 import (
 	"context"
 	"fmt"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 	"time"
 )
 
 type ArticleDAO interface {
 	Insert(ctx context.Context, art Article) (int64, error)
 	UpdateById(ctx context.Context, art Article) error
+	Sync(ctx context.Context, art Article) (int64, error)
+	Upsert(ctx context.Context, art PublishArticle) error
 }
 
 type GORMArticleDAO struct {
@@ -47,6 +51,49 @@ func (dao *GORMArticleDAO) UpdateById(ctx context.Context, art Article) error {
 			art.Id, art.AuthorId)
 	}
 	return res.Error
+}
+
+func (dao *GORMArticleDAO) Sync(ctx context.Context, art Article) (int64, error) {
+	// 先操作制作库（表），再操作线上库（表）
+	// 在事务内，采取闭包形态
+	// begin, rollback, commit都不需要操心
+	var (
+		id = art.Id
+	)
+	// tx, trx => transaction
+	err := dao.db.Transaction(func(tx *gorm.DB) error {
+		var err error
+		txDAO := NewArticleDAO(tx)
+		if id > 0 {
+			err = txDAO.UpdateById(ctx, art)
+		} else {
+			id, err = txDAO.Insert(ctx, art)
+		}
+		if err != nil {
+			return err
+		}
+		// 操作线上库（表）
+		return txDAO.Upsert(ctx, PublishArticle{Article: art})
+	})
+	return id, err
+}
+
+func (dao *GORMArticleDAO) Upsert(ctx context.Context, art PublishArticle) error {
+	now := time.Now().UnixMilli()
+	art.Ctime = now
+	art.Utime = now
+	// 插入
+	// OnConflict 指数据冲突
+	err := dao.db.Clauses(clause.OnConflict{
+		// mysql只关心这个
+		DoUpdates: clause.Assignments(map[string]interface{}{
+			"title":   art.Title,
+			"content": art.Content,
+			"utime":   art.Utime,
+		}),
+	}).Create(&art).Error
+	//最终语句 Insert xxx On duplicate Key update xxx
+	return err
 }
 
 func NewArticleDAO(db *gorm.DB) ArticleDAO {

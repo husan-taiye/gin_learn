@@ -45,7 +45,7 @@ func (a *articleService) Publish(ctx context.Context, art domain.Article) (int64
 	// 制作库
 	//id, err := a.repo.Create(ctx, art)
 
-	panic("xx")
+	return a.repo.Sync(ctx, art)
 }
 
 func (a *articleService) PublishV1(ctx context.Context, art domain.Article) (int64, error) {
