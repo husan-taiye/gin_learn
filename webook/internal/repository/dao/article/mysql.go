@@ -10,14 +10,6 @@ import (
 	"time"
 )
 
-type ArticleDAO interface {
-	Insert(ctx context.Context, art Article) (int64, error)
-	UpdateById(ctx context.Context, art Article) error
-	Sync(ctx context.Context, art Article) (int64, error)
-	Upsert(ctx context.Context, art PublishArticle) error
-	SyncStatus(ctx context.Context, art domain.Article) error
-}
-
 type GORMArticleDAO struct {
 	db *gorm.DB
 }
