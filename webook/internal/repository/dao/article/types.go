@@ -15,4 +15,5 @@ type ArticleDAO interface {
 	Upsert(ctx context.Context, art PublishArticle) error
 	SyncStatus(ctx context.Context, art domain.Article) error
 	GetByAuthor(ctx context.Context, uid int64, offset, limit int) ([]Article, error)
+	GetById(ctx context.Context, id int64) (Article, error)
 }

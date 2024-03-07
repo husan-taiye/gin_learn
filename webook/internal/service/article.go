@@ -4,6 +4,7 @@ import (
 	"context"
 	"gin_learn/webook/internal/domain"
 	"gin_learn/webook/internal/repository/article"
+	"github.com/gin-gonic/gin"
 )
 
 type ArticleService interface {
@@ -12,6 +13,7 @@ type ArticleService interface {
 	PublishV1(ctx context.Context, art domain.Article) (int64, error)
 	Withdraw(ctx context.Context, art domain.Article) error
 	List(ctx context.Context, uid int64, offset, limit int) ([]domain.Article, error)
+	GetById(ctx *gin.Context, Uid int64) (domain.Article, error)
 }
 
 type articleService struct {
@@ -20,6 +22,10 @@ type articleService struct {
 	// v1
 	author article.ArticleAuthorRepository
 	reader article.ArticleReaderRepository
+}
+
+func (a *articleService) GetById(ctx *gin.Context, id int64) (domain.Article, error) {
+	return a.repo.GetById(ctx, id)
 }
 
 func (a *articleService) List(ctx context.Context, uid int64, offset, limit int) ([]domain.Article, error) {

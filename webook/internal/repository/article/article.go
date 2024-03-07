@@ -3,8 +3,11 @@ package article
 import (
 	"context"
 	"gin_learn/webook/internal/domain"
+	"gin_learn/webook/internal/repository/cache"
 	adao "gin_learn/webook/internal/repository/dao/article"
+	"gin_learn/webook/pkg/logger"
 	"github.com/ecodeclub/ekit/slice"
+	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 	"time"
 )
@@ -16,6 +19,7 @@ type ArticleRepository interface {
 	Sync(ctx context.Context, article domain.Article) (int64, error)
 	SyncStatus(ctx context.Context, art domain.Article) error
 	List(ctx context.Context, uid int64, offset, limit int) ([]domain.Article, error)
+	GetById(ctx *gin.Context, id int64) (domain.Article, error)
 }
 type CacheArticleRepository struct {
 	dao adao.ArticleDAO
@@ -29,17 +33,47 @@ type CacheArticleRepository struct {
 	// 那么就只能利用db开启事务之后，创建基于事务的 DAO
 	// 或者，直接去掉 DAO 这一层，在repo实现中，直接操作db
 	db *gorm.DB
+
+	cache  cache.ArticleCache
+	logger logger.Logger
+}
+
+func (c *CacheArticleRepository) GetById(ctx *gin.Context, id int64) (domain.Article, error) {
+	art, err := c.dao.GetById(ctx, id)
+	return c.toDomain(art), err
 }
 
 func (c *CacheArticleRepository) List(ctx context.Context, uid int64, offset, limit int) ([]domain.Article, error) {
+	// 在这个地方集成复杂的缓存方案
+	if offset == 0 && limit <= 100 {
+		data, err := c.cache.GetFirstPage(ctx, uid)
+		if err == nil {
+			return data[:limit], nil
+		}
+	}
 	res, err := c.dao.GetByAuthor(ctx, uid, offset, limit)
 	if err != nil {
 		return nil, err
 	}
-	return slice.Map[adao.Article, domain.Article](res,
+	data := slice.Map[adao.Article, domain.Article](res,
 		func(idx int, src adao.Article) domain.Article {
 			return c.toDomain(src)
-		}), nil
+		})
+	// 回写缓存 考虑是set还是del
+	// 如果没有很高并发 直接set
+	// 如果有很高并发 del
+
+	// 同步日志
+	//err = c.cache.SetFirstPage(ctx, uid, data)
+	//if err != nil {
+	// 日志
+	//}
+	// goroutine 日志
+	go func() {
+		err := c.cache.SetFirstPage(ctx, uid, data)
+		c.logger.Error("回写缓存失败", logger.Error(err))
+	}()
+	return data, nil
 }
 
 func (c *CacheArticleRepository) SyncStatus(ctx context.Context, art domain.Article) error {
@@ -47,6 +81,12 @@ func (c *CacheArticleRepository) SyncStatus(ctx context.Context, art domain.Arti
 }
 
 func (c *CacheArticleRepository) Create(ctx context.Context, article domain.Article) (int64, error) {
+	defer func() {
+		err := c.cache.DelFirstPage(ctx, article.Author.Id)
+		if err != nil {
+			c.logger.Error("创建文章时删除缓存失败", logger.Error(err))
+		}
+	}()
 	return c.dao.Insert(ctx, adao.Article{
 		Title:    article.Title,
 		Content:  article.Content,
@@ -56,6 +96,12 @@ func (c *CacheArticleRepository) Create(ctx context.Context, article domain.Arti
 }
 
 func (c *CacheArticleRepository) Update(ctx context.Context, article domain.Article) error {
+	defer func() {
+		err := c.cache.DelFirstPage(ctx, article.Author.Id)
+		if err != nil {
+			c.logger.Error("修改文章时删除缓存失败", logger.Error(err))
+		}
+	}()
 	return c.dao.UpdateById(ctx, adao.Article{
 		Id:       article.Id,
 		Title:    article.Title,
@@ -153,8 +199,9 @@ func (c *CacheArticleRepository) toDomain(art adao.Article) domain.Article {
 	}
 }
 
-func NewArticleRepository(dao adao.ArticleDAO) ArticleRepository {
+func NewArticleRepository(dao adao.ArticleDAO, logger2 logger.Logger) ArticleRepository {
 	return &CacheArticleRepository{
-		dao: dao,
+		dao:    dao,
+		logger: logger2,
 	}
 }

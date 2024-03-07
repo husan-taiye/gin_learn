@@ -14,6 +14,12 @@ type GORMArticleDAO struct {
 	db *gorm.DB
 }
 
+func (dao *GORMArticleDAO) GetById(ctx context.Context, id int64) (Article, error) {
+	var res Article
+	err := dao.db.WithContext(ctx).Model(&Article{}).Where("id= ?", id).Find(&res).Error
+	return res, err
+}
+
 func (dao *GORMArticleDAO) GetByAuthor(ctx context.Context, uid int64, offset, limit int) ([]Article, error) {
 	var arts []Article
 	err := dao.db.WithContext(ctx).Model(&Article{}).
