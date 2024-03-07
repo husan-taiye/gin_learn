@@ -22,3 +22,6 @@ oauth2:
 
 state用法：
 ![img_6.png](img_6.png)
+
+缓存淘汰策略：
+![img_7.png](img_7.png)

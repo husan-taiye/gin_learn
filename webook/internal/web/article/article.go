@@ -39,6 +39,9 @@ func (art *ArticleHandler) RegisterRoutes(server *gin.Engine) {
 	g.GET("/list", ginx.WrapBodyAndToken[ListReq, ijwt.UserClaims](art.List))
 
 	g.GET("/detail/:id", ginx.WrapToken[ijwt.UserClaims](art.Detail))
+
+	pub := g.Group("/pub")
+	pub.GET("/:id", art.PubDetail)
 }
 
 func (art *ArticleHandler) Edit(ctx *gin.Context) {
@@ -234,4 +237,32 @@ func (art *ArticleHandler) Detail(ctx *gin.Context, uc ijwt.UserClaims) (utils.R
 		},
 	}, nil
 
+}
+
+func (art *ArticleHandler) PubDetail(ctx *gin.Context) {
+	idstr := ctx.Param("id")
+	id, err := strconv.ParseInt(idstr, 10, 64)
+	if err != nil {
+		ctx.JSON(http.StatusOK, utils.Result{
+			Code: 4,
+			Msg:  "参数错误",
+		})
+		art.logger.Error("前端输入的 ID 不对", logger.Error(err))
+		return
+	}
+
+	artRes, err := art.svc.GetPublishedById(ctx, id)
+
+	ctx.JSON(http.StatusOK, utils.Result{
+		Data: ArticleVO{
+			Id:      artRes.Id,
+			Title:   artRes.Title,
+			Status:  artRes.Status.ToUint8(),
+			Content: artRes.Content,
+			// 要把作者信息带出去
+			AuthorName: artRes.Author.Name,
+			Ctime:      artRes.Ctime.Format(time.DateTime),
+			Utime:      artRes.Utime.Format(time.DateTime),
+		},
+	})
 }

@@ -114,7 +114,8 @@ func (ur *DCUserRepository) FindProfileByUserId(ctx context.Context, userId int6
 			UserId:   up.UserId,
 			Nickname: up.Nickname,
 			Birthday: time.UnixMilli(up.Birthday).Format(utils.TimeTemplate3),
-			Profile:  up.Profile,
+			//Birthday: time.UnixMilli(up.Birthday).Format(time.DateOnly),
+			Profile: up.Profile,
 		}
 		err = ur.cache.Set(ctx, toCacheUp)
 		if err != nil {

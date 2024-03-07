@@ -3,6 +3,7 @@ package article
 import (
 	"context"
 	"gin_learn/webook/internal/domain"
+	"gin_learn/webook/internal/repository"
 	"gin_learn/webook/internal/repository/cache"
 	adao "gin_learn/webook/internal/repository/dao/article"
 	"gin_learn/webook/pkg/logger"
@@ -20,9 +21,11 @@ type ArticleRepository interface {
 	SyncStatus(ctx context.Context, art domain.Article) error
 	List(ctx context.Context, uid int64, offset, limit int) ([]domain.Article, error)
 	GetById(ctx *gin.Context, id int64) (domain.Article, error)
+	GetPublishedById(ctx *gin.Context, id int64) (domain.Article, error)
 }
 type CacheArticleRepository struct {
-	dao adao.ArticleDAO
+	dao      adao.ArticleDAO
+	userRepo repository.UserRepository
 
 	// v1 操作两个dao
 	readerDao adao.ReaderDao
@@ -38,6 +41,26 @@ type CacheArticleRepository struct {
 	logger logger.Logger
 }
 
+func (c *CacheArticleRepository) GetPublishedById(ctx *gin.Context, id int64) (domain.Article, error) {
+	art, err := c.dao.GetPubById(ctx, id)
+	if err != nil {
+		return domain.Article{}, err
+	}
+	usr, err := c.userRepo.FindProfileByUserId(ctx, art.AuthorId)
+	res := domain.Article{
+		Id:      art.Id,
+		Title:   art.Title,
+		Content: art.Content,
+		Author: domain.Author{
+			Id:   art.AuthorId,
+			Name: usr.Nickname,
+		},
+		Ctime: time.UnixMilli(art.Ctime),
+		Utime: time.UnixMilli(art.Utime),
+	}
+	return res, nil
+}
+
 func (c *CacheArticleRepository) GetById(ctx *gin.Context, id int64) (domain.Article, error) {
 	art, err := c.dao.GetById(ctx, id)
 	return c.toDomain(art), err
@@ -48,6 +71,9 @@ func (c *CacheArticleRepository) List(ctx context.Context, uid int64, offset, li
 	if offset == 0 && limit <= 100 {
 		data, err := c.cache.GetFirstPage(ctx, uid)
 		if err == nil {
+			go func() {
+				c.preCache(ctx, data)
+			}()
 			return data[:limit], nil
 		}
 	}
@@ -72,6 +98,7 @@ func (c *CacheArticleRepository) List(ctx context.Context, uid int64, offset, li
 	go func() {
 		err := c.cache.SetFirstPage(ctx, uid, data)
 		c.logger.Error("回写缓存失败", logger.Error(err))
+		c.preCache(ctx, data)
 	}()
 	return data, nil
 }
@@ -196,6 +223,16 @@ func (c *CacheArticleRepository) toDomain(art adao.Article) domain.Article {
 		},
 		Ctime: time.UnixMilli(art.Ctime),
 		Utime: time.UnixMilli(art.Utime),
+	}
+}
+
+func (c *CacheArticleRepository) preCache(ctx context.Context, data []domain.Article) {
+	//大文件可以不缓存
+	if len(data) > 0 {
+		err := c.cache.Set(ctx, data[0].Id, data[0])
+		if err != nil {
+			c.logger.Error("提前预加载缓存失败", logger.Error(err))
+		}
 	}
 }
 

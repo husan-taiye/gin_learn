@@ -13,6 +13,8 @@ type ArticleCache interface {
 	GetFirstPage(ctx context.Context, uid int64) ([]domain.Article, error)
 	SetFirstPage(ctx context.Context, uid int64, arts []domain.Article) error
 	DelFirstPage(ctx context.Context, uid int64) error
+
+	Set(ctx context.Context, id int64, art domain.Article) error
 }
 
 type RedisArticleCache struct {
@@ -20,7 +22,7 @@ type RedisArticleCache struct {
 }
 
 func (r *RedisArticleCache) GetFirstPage(ctx context.Context, uid int64) ([]domain.Article, error) {
-	data, err := r.client.Get(ctx, r.key(uid)).Bytes()
+	data, err := r.client.Get(ctx, r.firstPageKey(uid)).Bytes()
 	if err != nil {
 		return nil, err
 	}
@@ -35,9 +37,9 @@ func (r *RedisArticleCache) SetFirstPage(ctx context.Context, uid int64, arts []
 	}
 	data, err := json.Marshal(arts)
 	if err != nil {
-		return nil
+		return err
 	}
-	return r.client.Set(ctx, r.key(uid), data, time.Minute*10).Err()
+	return r.client.Set(ctx, r.firstPageKey(uid), data, time.Minute*10).Err()
 }
 
 func (r *RedisArticleCache) DelFirstPage(ctx context.Context, uid int64) error {
@@ -45,7 +47,20 @@ func (r *RedisArticleCache) DelFirstPage(ctx context.Context, uid int64) error {
 	panic("implement me")
 }
 
-func (r *RedisArticleCache) key(uid int64) string {
-	return fmt.Sprintf("article:first_page:%d", uid)
+func (r *RedisArticleCache) Set(ctx context.Context, id int64, art domain.Article) error {
+	data, err := json.Marshal(art)
+	if err != nil {
+		return err
+	}
+	// 过期时间短一些
+	return r.client.Set(ctx, r.key(id), data, time.Second*30).Err()
+}
 
+func (r *RedisArticleCache) key(id int64) string {
+	return fmt.Sprintf("article:id:%d", id)
+
+}
+
+func (r *RedisArticleCache) firstPageKey(uid int64) string {
+	return fmt.Sprintf("article:first_page:%d", uid)
 }
