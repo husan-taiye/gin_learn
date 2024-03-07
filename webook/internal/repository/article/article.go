@@ -4,7 +4,9 @@ import (
 	"context"
 	"gin_learn/webook/internal/domain"
 	adao "gin_learn/webook/internal/repository/dao/article"
+	"github.com/ecodeclub/ekit/slice"
 	"gorm.io/gorm"
+	"time"
 )
 
 type ArticleRepository interface {
@@ -13,6 +15,7 @@ type ArticleRepository interface {
 	// Sync 存储并同步数据
 	Sync(ctx context.Context, article domain.Article) (int64, error)
 	SyncStatus(ctx context.Context, art domain.Article) error
+	List(ctx context.Context, uid int64, offset, limit int) ([]domain.Article, error)
 }
 type CacheArticleRepository struct {
 	dao adao.ArticleDAO
@@ -26,6 +29,17 @@ type CacheArticleRepository struct {
 	// 那么就只能利用db开启事务之后，创建基于事务的 DAO
 	// 或者，直接去掉 DAO 这一层，在repo实现中，直接操作db
 	db *gorm.DB
+}
+
+func (c *CacheArticleRepository) List(ctx context.Context, uid int64, offset, limit int) ([]domain.Article, error) {
+	res, err := c.dao.GetByAuthor(ctx, uid, offset, limit)
+	if err != nil {
+		return nil, err
+	}
+	return slice.Map[adao.Article, domain.Article](res,
+		func(idx int, src adao.Article) domain.Article {
+			return c.toDomain(src)
+		}), nil
 }
 
 func (c *CacheArticleRepository) SyncStatus(ctx context.Context, art domain.Article) error {
@@ -123,6 +137,19 @@ func (c *CacheArticleRepository) toEntity(article domain.Article) adao.Article {
 		Content:  article.Content,
 		AuthorId: article.Author.Id,
 		Status:   article.Status.ToUint8(),
+	}
+}
+
+func (c *CacheArticleRepository) toDomain(art adao.Article) domain.Article {
+	return domain.Article{
+		Id:      art.Id,
+		Title:   art.Title,
+		Content: art.Content,
+		Author: domain.Author{
+			Id: art.AuthorId,
+		},
+		Ctime: time.UnixMilli(art.Ctime),
+		Utime: time.UnixMilli(art.Utime),
 	}
 }
 

@@ -14,6 +14,17 @@ type GORMArticleDAO struct {
 	db *gorm.DB
 }
 
+func (dao *GORMArticleDAO) GetByAuthor(ctx context.Context, uid int64, offset, limit int) ([]Article, error) {
+	var arts []Article
+	err := dao.db.WithContext(ctx).Model(&Article{}).
+		Where("author_id=?", uid).
+		Offset(offset).
+		Limit(limit).
+		Order("utime DESC").
+		Find(&arts).Error
+	return arts, err
+}
+
 func (dao *GORMArticleDAO) SyncStatus(ctx context.Context, art domain.Article) error {
 	now := time.Now().UnixMilli()
 	return dao.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {

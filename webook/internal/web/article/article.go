@@ -6,9 +6,12 @@ import (
 	"gin_learn/webook/internal/web/handler"
 	ijwt "gin_learn/webook/internal/web/jwt"
 	"gin_learn/webook/internal/web/utils"
+	"gin_learn/webook/pkg/ginx"
 	"gin_learn/webook/pkg/logger"
+	"github.com/ecodeclub/ekit/slice"
 	"github.com/gin-gonic/gin"
 	"net/http"
+	"time"
 )
 
 var _ handler.Handler = (*ArticleHandler)(nil)
@@ -30,6 +33,8 @@ func (art *ArticleHandler) RegisterRoutes(server *gin.Engine) {
 	g.POST("/edit", art.Edit)
 	g.POST("/publish", art.Publish)
 	g.POST("/withdraw", art.Withdraw)
+	// get获取
+	g.GET("/list", ginx.WrapBodyAndToken[ListReq, ijwt.UserClaims](art.List))
 }
 
 func (art *ArticleHandler) Edit(ctx *gin.Context) {
@@ -153,19 +158,27 @@ func (art *ArticleHandler) Withdraw(ctx *gin.Context) {
 
 }
 
-type ArticleReq struct {
-	Id      int64  `json:"id"`
-	Title   string `json:"title"`
-	Content string `json:"content""`
-}
-
-func (req ArticleReq) toDomain(uid int64) domain.Article {
-	return domain.Article{
-		Id:      req.Id,
-		Title:   req.Title,
-		Content: req.Content,
-		Author: domain.Author{
-			Id: uid,
-		},
+func (art *ArticleHandler) List(ctx *gin.Context, req ListReq, uc ijwt.UserClaims) (utils.Result, error) {
+	res, err := art.svc.List(ctx, uc.Uid, req.Offset, req.Limit)
+	if err != nil {
+		return utils.Result{
+			Code: 5,
+			Msg:  "系统错误",
+		}, err
 	}
+	// 列表页，不显示全文，只显示一个摘要
+	// 前几句话
+	return utils.Result{
+		Data: slice.Map[domain.Article, ArticleVO](res,
+			func(idx int, src domain.Article) ArticleVO {
+				return ArticleVO{
+					Id:       src.Id,
+					Title:    src.Title,
+					Abstract: src.Abstract(),
+					Status:   src.Status.ToUint8(),
+					Ctime:    src.Ctime.Format(time.DateTime),
+					Utime:    src.Utime.Format(time.DateTime),
+				}
+			}),
+	}, nil
 }
